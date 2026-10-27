@@ -31,6 +31,27 @@
   .btn.ghost { background:transparent; color:var(--muted); border:1px solid #3a4150; font-size:12px; padding:8px 12px; font-weight:600; }
   .money { font-size:18px; color:var(--gold); font-weight:800; }
   p.help { color:var(--muted); font-size:13px; margin:6px 0 0; }
+  html, body { touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  #rotate { display:none; color:var(--gold); font-size:13px; margin:8px 0 0; text-align:center; }
+  /* Móvil: la tienda va debajo del juego en vez de encima, para que tenga espacio */
+  @media (max-width:700px) {
+    body { padding:8px 12px; }
+    h1 { font-size:18px; margin:0 0 6px; }
+    #overlay { position:static; background:none; padding:10px 0 0; border-radius:0; overflow:visible; }
+    .card { padding:14px; }
+    .shop { grid-template-columns:1fr 1fr; }
+    .up { padding:8px; }
+    .up .d { font-size:11px; min-height:0; }
+    .stats { grid-template-columns:repeat(4,1fr); }
+    .stat b { font-size:16px; }
+    .btn { width:100%; }
+  }
+  @media (max-width:700px) and (orientation:portrait) { #rotate { display:block; } }
+  @media (max-height:500px) and (orientation:landscape) {
+    h1, p.help { display:none; }
+    body { padding:4px 12px; }
+    #wrap { max-width:calc((100vh - 8px) * 16 / 9); }
+  }
 </style>
 </head>
 <body>
@@ -39,6 +60,7 @@
   <canvas id="c" width="960" height="540"></canvas>
   <div id="overlay"><div class="card" id="card"></div></div>
 </div>
+<p id="rotate">📱 Gira el móvil en horizontal para jugar más cómodo</p>
 <p class="help">Clic, toque o <b>Espacio</b> para lanzar cuando la flecha esté en la zona verde. Centro exacto = tiro limpio (+50%). Mete todos los balones del carro y se recarga al instante.</p>
 
 <script>
@@ -326,9 +348,9 @@ function renderShop() {
   card.innerHTML = `
     <h2>${card.dataset.title || '🏀 Canasta Infinita'}</h2>
     ${card.dataset.stats ? `<div class="stats">${card.dataset.stats}</div>` : `<p class="help">Tienes un minuto al día para encestar. Gana puntos, compra mejoras y vuelve más fuerte mañana.</p>`}
-    <div class="row" style="margin:0 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span><span style="color:var(--muted);font-size:13px">Total histórico: ${fmt(S.total)}</span></div>
+    <div class="row" style="margin:0 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
-    <div class="row"><button class="btn ghost" id="reset">Borrar partida</button><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>`;
+    <div class="row"><span style="color:var(--muted);font-size:13px">Total histórico: ${fmt(S.total)}</span><button class="btn ghost" id="reset">Borrar partida</button></div>`;
   card.querySelectorAll('.up').forEach(b => b.onclick = () => {
     const u = UPS.find(x => x.id === b.dataset.id), c = cost(u, S.lv[u.id]);
     if (S.points >= c && S.lv[u.id] < u.max) { S.points -= c; S.lv[u.id]++; save(); beep(760, .08); renderShop(); }
@@ -338,7 +360,8 @@ function renderShop() {
   overlay.classList.remove('hidden');
 }
 
-cv.addEventListener('pointerdown', e => { e.preventDefault(); shoot(); });
+// Durante el día, tocar en cualquier parte de la pantalla lanza (en móvil el canvas es pequeño)
+addEventListener('pointerdown', e => { if (mode === 'play') { e.preventDefault(); shoot(); } });
 addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); if (mode === 'play') shoot(); else if (!e.repeat) startDay(); }
 });
