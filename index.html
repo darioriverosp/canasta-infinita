@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Canasta Infinita 3D</title>
+<title>CanastaMan</title>
 <style>
   :root { --bg:#14161c; --panel:#1b1f28; --card:#272c37; --line:#353c4b; --text:#f2f2f2; --muted:#9aa3b2;
           --accent:#ff8a2a; --good:#3ddc84; --bad:#ff5c5c; --gold:#ffd23f; --blue:#4aa3ff; color-scheme:dark; }
@@ -65,6 +65,7 @@
   .btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-size:12px; padding:8px 12px; font-weight:600; }
   .foot { margin-top:14px; font-size:13px; color:var(--muted); }
   .foot a { color:var(--muted); }
+  .credit { margin:16px 0 0; padding-top:12px; border-top:1px solid var(--line); text-align:center; font-size:13px; color:var(--muted); }
   @media (max-width:600px) {
     .shop { grid-template-columns:1fr 1fr; }
     .up { padding:8px; } .up .d { font-size:11px; }
@@ -662,13 +663,14 @@ function renderShop() {
       <div class="c">${maxed ? 'MÁXIMO' : fmt(c) + ' pts'}</div></button>`;
   }).join('');
   card.innerHTML = `
-    <h2>${lastStats ? lastStats.title : '🏀 Canasta Infinita 3D'}</h2>
+    <h2>${lastStats ? lastStats.title : '🏀 CanastaMan'}</h2>
     ${lastStats ? `<div class="stats">${lastStats.items.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
       : `<p class="help"><b>Desliza el dedo (o arrastra con el ratón) hacia arriba</b> para lanzar: cuanto más largo el gesto, más fuerza. Intenta soltar con la barra en la zona verde. En PC también puedes mantener <b>Espacio</b> y soltar.<br>
          Canasta limpia +50%, de tablero +25%. Si metes todo el carro, se recarga gratis.</p>`}
     <div class="row"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
-    <div class="row foot"><span>Total histórico: ${fmt(S.total)} · <a href="clasico.html">versión 2D</a></span><button class="btn ghost" id="reset">Borrar partida</button></div>`;
+    <div class="row foot"><span>Total histórico: ${fmt(S.total)} · <a href="clasico.html">versión 2D</a></span><button class="btn ghost" id="reset">Borrar partida</button></div>
+    <p class="credit">Hecho con ❤️ por Gonzalo Dario Riveros Plaza</p>`;
   card.querySelectorAll('.up').forEach(b => b.onclick = () => {
     const u = UPS.find(x => x.id === b.dataset.id), c = cost(u, S.lv[u.id]);
     if (S.points >= c && S.lv[u.id] < u.max) { S.points -= c; S.lv[u.id]++; save(); beep(760, 0.08); renderShop(); }

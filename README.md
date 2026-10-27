@@ -1,4 +1,4 @@
-# 🏀 Canasta Infinita
+# 🏀 CanastaMan
 
 Juego **incremental** de baloncesto: cada "día" tienes 60 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
 
@@ -96,3 +96,7 @@ y abrir http://localhost:5180
 ## Publicación
 
 El sitio es estático, así que Netlify lo sirve tal cual (`netlify.toml` publica la carpeta raíz, sin paso de build).
+
+---
+
+Hecho con ❤️ por Gonzalo Dario Riveros Plaza

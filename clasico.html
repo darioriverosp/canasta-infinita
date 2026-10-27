@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Canasta Infinita</title>
+<title>CanastaMan</title>
 <style>
   :root { --bg:#14161c; --panel:#1f232c; --text:#f2f2f2; --muted:#9aa3b2; --accent:#ff8a2a; --good:#3ddc84; --bad:#ff5c5c; --gold:#ffd23f; }
   * { box-sizing: border-box; }
@@ -55,13 +55,14 @@
 </style>
 </head>
 <body>
-<h1>🏀 Canasta Infinita <small style="color:var(--muted);font-size:13px;font-weight:400">prototipo</small></h1>
+<h1>🏀 CanastaMan <small style="color:var(--muted);font-size:13px;font-weight:400">prototipo</small></h1>
 <div id="wrap">
   <canvas id="c" width="960" height="540"></canvas>
   <div id="overlay"><div class="card" id="card"></div></div>
 </div>
 <p id="rotate">📱 Gira el móvil en horizontal para jugar más cómodo</p>
 <p class="help">Clic, toque o <b>Espacio</b> para lanzar cuando la flecha esté en la zona verde. Centro exacto = tiro limpio (+50%). Mete todos los balones del carro y se recarga al instante.</p>
+<footer style="margin-top:auto;padding-top:16px;font-size:13px;color:var(--muted);text-align:center">Hecho con ❤️ por Gonzalo Dario Riveros Plaza</footer>
 
 <script>
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
@@ -346,7 +347,7 @@ function renderShop() {
       <div class="c">${maxed ? 'MÁXIMO' : fmt(c) + ' pts'}</div></button>`;
   }).join('');
   card.innerHTML = `
-    <h2>${card.dataset.title || '🏀 Canasta Infinita'}</h2>
+    <h2>${card.dataset.title || '🏀 CanastaMan'}</h2>
     ${card.dataset.stats ? `<div class="stats">${card.dataset.stats}</div>` : `<p class="help">Tienes un minuto al día para encestar. Gana puntos, compra mejoras y vuelve más fuerte mañana.</p>`}
     <div class="row" style="margin:0 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
