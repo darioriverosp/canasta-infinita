@@ -1,81 +1,97 @@
 # 🏀 Canasta Infinita
 
-Prototipo de juego **incremental** de baloncesto: cada "día" tienes 60 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
+Juego **incremental** de baloncesto: cada "día" tienes 60 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
 
-Para jugar: abre `index.html` en cualquier navegador (no hay que instalar nada).
+- **Jugar online:** https://canasta-infinita.netlify.app
+- `index.html`: versión **3D** (la principal).
+- `clasico.html`: la primera versión **2D**, con el medidor de pulsar a tiempo.
 
-## Cómo se juega
+## Cómo se juega (3D)
 
-- Clic, toque o **Espacio** para lanzar cuando la flecha del medidor esté en la **zona verde**.
-- Centro exacto (verde claro) = **tiro limpio**, vale +50%.
-- Empiezas con 6 balones. Si metes **todos** los del carro, se recarga gratis al instante; si fallas alguno, toca esperar la recarga.
-- Al acabar el día salen las estadísticas y la tienda de mejoras.
+- **Desliza el dedo hacia arriba** (o arrastra con el ratón) para lanzar. Cuanto más largo el gesto, más fuerza: deslizar un 28% de la pantalla es la fuerza ideal. Si lo deslizas torcido, el tiro sale torcido.
+- Mientras deslizas, a la derecha sale una **barra de fuerza con la zona verde** y una **guía de puntos** con el principio de la trayectoria.
+- En PC también puedes **mantener Espacio** (la fuerza sube y baja) y soltarlo para lanzar recto.
+- **Canasta limpia** (sin tocar aro ni tablero): +50%. **De tablero**: +25%. **Balón dorado**: x5.
+- Empiezas con 6 balones. Si metes **todos** los del carro, se recarga gratis al instante.
 
 ## Cómo está hecho
 
-**No usa ninguna librería ni motor.** Es un solo archivo, `index.html`, con HTML, CSS y **JavaScript puro** (vanilla JS). Todo lo que hace lo hace con funciones que ya trae el navegador:
+Es un solo archivo, `index.html`, con HTML, CSS y **JavaScript**. Usa una sola librería:
 
-| Qué | Con qué (API del navegador) |
+| Qué | Con qué |
 |---|---|
-| Dibujar el juego | **Canvas 2D** (`<canvas>` + `getContext('2d')`) |
-| Animación | `requestAnimationFrame` (bucle a ~60 fps) |
-| Sonidos | **Web Audio API** (`AudioContext` + osciladores) |
+| Gráficos 3D | **Three.js** 0.160 (se carga desde el CDN jsDelivr) |
+| Física del balón | Escrita a mano (gravedad, rebotes en aro, tablero y suelo) |
+| Sonidos | **Web Audio API** del navegador, sin archivos de audio |
 | Guardar la partida | `localStorage` |
-| Tienda y estadísticas | HTML + CSS normales encima del canvas |
+| Marcador, tienda y estadísticas | HTML + CSS encima del 3D |
 
-### El bucle del juego
+### La escena
 
-Cada fotograma se llama a `loop()`, que hace dos cosas:
+Todo está hecho con figuras de Three.js, sin modelos descargados: estilo **low-poly**.
 
-1. `update(dt)`: mueve todo según el tiempo pasado (`dt`, en segundos): baja el reloj del día, mueve la flecha del medidor arriba y abajo, avanza los balones, las partículas y los textos flotantes, y gestiona la recarga y el compañero.
-2. `draw()`: borra y vuelve a pintar la escena entera: fondo, suelo, canasta, jugadores, balones, medidor y marcador.
+- **Pista:** un plano con una textura dibujada en un `<canvas>` (zona, línea de tiro libre, triple, círculo central y las marcas de distancia).
+- **Canasta:** poste, tablero (`BoxGeometry`), aro (`TorusGeometry`) y red (`LineSegments`), que se estira cuando encestas.
+- **Jugadores:** cajas y esferas. Los brazos giran desde el hombro para la animación de lanzar.
+- **Ciudad de fondo:** cajas con una textura de ventanas que brillan (`emissiveMap`), cielo de atardecer, valla metálica y árboles.
+- **Luz:** una luz de ambiente y un "sol" que proyecta sombras.
 
-### Los tiros
+Todas las medidas son reales, en metros: el aro está a 3,05 m, tiene 23 cm de radio y el balón 12 cm.
 
-Cuando pulsas, `shoot()` mira **dónde está la flecha** del medidor. Si está dentro de la zona verde, es canasta; si no, fallo. El resultado se decide **en el momento de lanzar**, y luego el balón solo hace la animación:
+### La física del tiro
 
-- Vuela en **parábola** desde el jugador hasta el aro (interpolación lineal en X + una curva `4·p·(1-p)` para la altura).
-- Si entra, cae por la red y suma puntos (`scoreBall`). Si falla, rebota en el aro con una física sencilla (gravedad + rebote en el suelo).
+1. `shotVel()` calcula la **velocidad ideal** para que el balón caiga justo en el centro del aro desde donde estás (fórmula del tiro parabólico con un ángulo de 48–52°).
+2. Tu gesto da un **error de fuerza** (gesto más corto o más largo que el ideal) y un **error de dirección** (gesto torcido).
+3. La mejora de **Puntería** reduce esos errores: `effS()` y `effYaw()` acercan tu tiro al ideal.
+4. El balón vuela con física real en `stepBall()`, en 6 pasos pequeños por fotograma para que no atraviese el aro:
+   - **Tablero:** rebota y pierde energía.
+   - **Aro:** busca el punto del aro más cercano al balón y lo hace rebotar en esa dirección. Por eso a veces el balón da vueltas por el aro y entra o sale.
+   - **Canasta:** cuenta cuando el balón cruza hacia abajo el plano del aro por dentro.
+   - **Suelo:** bota y se frena.
+
+La **zona verde** de la barra no es inventada: al empezar el día, `computeZone()` simula cientos de tiros con distintas fuerzas y marca cuáles entran.
 
 ### Las mejoras
 
-Todo el balance está en dos tablas al principio del script, así se puede ajustar sin tocar la lógica:
+Todo el balance está en tablas al principio del script, para ajustarlo sin tocar la lógica:
 
 - `UPS`: cada mejora con su coste base (`base`), cuánto se encarece por nivel (`g`) y nivel máximo (`max`). Coste = `base × g^nivel`.
-- `DIST`: las distancias de tiro, su posición en pantalla y los puntos por canasta.
+- `DIST`: las distancias de tiro reales (de 4,6 m de tiro libre a 12,8 m de medio campo) y los puntos por canasta.
+- `powAssist`, `yawAssist` y `guideFrac`: cuánto ayuda la Puntería y cuánto se ve de la guía.
 
 Mejoras: Puntería, Distancia, Más balones, Recarga rápida, Puntos x2, Doble tiro, Suerte (balón dorado x5), Compañero y Día más largo.
 
 ### Cómo salen los sonidos
 
-No hay archivos de audio (ni `.mp3` ni `.wav`). Los sonidos **se generan en el momento** con la Web Audio API, en la función `beep()`:
+No hay archivos de audio. Los sonidos **se generan en el momento** con la Web Audio API:
+
+- `beep()`: un **oscilador** genera una onda con un tono (en hercios) y el volumen se apaga rápido. Así salen el lanzamiento, los pitidos de canasta (660 → 880 Hz), el golpe del tablero y el "clang" del aro.
+- `noise()`: el **swish de la red**. Genera ruido aleatorio y lo pasa por un filtro (`BiquadFilter`) que deja solo los agudos, como el sonido de la red al pasar el balón.
 
 ```js
 const o = AC.createOscillator();   // genera una onda (el "pitido")
 const g = AC.createGain();         // controla el volumen
-o.type = 'square';                 // forma de onda: square, triangle, sawtooth...
+o.type = 'square';                 // forma de onda: square, triangle, sawtooth, sine
 o.frequency.value = 660;           // tono en hercios (más alto = más agudo)
 g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + 0.08); // se apaga rápido
 o.connect(g); g.connect(AC.destination); // oscilador → volumen → altavoces
-o.start(); o.stop(AC.currentTime + 0.08);
 ```
 
-Así suena cada cosa:
-
-- **Lanzar**: onda triangular grave (220 Hz).
-- **Canasta**: dos pitidos seguidos que suben (660 → 880 Hz), estilo arcade. Con balón dorado, más agudos.
-- **Fallo**: onda "sawtooth" muy grave (120 Hz), suena a golpe en el aro.
-- **Carro perfecto / comprar mejora / recarga**: otros pitidos cortos.
-
-Los navegadores no dejan reproducir sonido hasta que el jugador toca algo, por eso el `AudioContext` se crea en el primer lanzamiento.
+Los navegadores no dejan sonar nada hasta que el jugador toca la pantalla, por eso el audio se activa al empezar el día.
 
 ### Guardado
 
-La partida (puntos, día y niveles de mejora) se guarda en `localStorage` del navegador al final de cada día y al comprar. Es por navegador: si lo abres en otro móvil u ordenador, empiezas de cero.
+La partida (puntos, día y niveles de mejora) se guarda en `localStorage` al final de cada día y al comprar. Es por navegador: en otro móvil u ordenador se empieza de cero. Las versiones 3D y 2D tienen partidas separadas.
 
-### Formato de números
+## Probarlo en local
 
-`fmt()` convierte los números grandes a 1.2K, 3.4M, 5.6B…, típico de los juegos incrementales.
+Por usar módulos de JavaScript, la versión 3D necesita un servidor (abrir el archivo con doble clic puede no funcionar):
+
+```bash
+npx http-server -p 5180
+```
+
+y abrir http://localhost:5180
 
 ## Publicación
 
