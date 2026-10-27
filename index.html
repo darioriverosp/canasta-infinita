@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canasta Infinita</title>
+<style>
+  :root { --bg:#14161c; --panel:#1f232c; --text:#f2f2f2; --muted:#9aa3b2; --accent:#ff8a2a; --good:#3ddc84; --bad:#ff5c5c; --gold:#ffd23f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:12px 16px; }
+  h1 { margin:4px 0 8px; font-size:22px; letter-spacing:.5px; }
+  #wrap { position:relative; width:100%; max-width:960px; }
+  canvas { width:100%; aspect-ratio:16/9; display:block; border-radius:12px; background:#222; touch-action:manipulation; cursor:pointer; }
+  #overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(10,12,16,.82); border-radius:12px; overflow:auto; padding:16px; }
+  #overlay.hidden { display:none; }
+  .card { background:var(--panel); border-radius:12px; padding:18px; width:100%; max-width:820px; }
+  .card h2 { margin:0 0 6px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin:10px 0 14px; }
+  .stat { background:#272c37; border-radius:8px; padding:8px 10px; }
+  .stat b { display:block; font-size:20px; }
+  .stat span { color:var(--muted); font-size:12px; }
+  .shop { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; }
+  .up { background:#272c37; border:1px solid #333a48; border-radius:8px; padding:10px; color:var(--text); text-align:left; cursor:pointer; font:inherit; }
+  .up:hover:not(:disabled) { border-color:var(--accent); }
+  .up:disabled { opacity:.45; cursor:not-allowed; }
+  .up .t { font-weight:700; display:flex; justify-content:space-between; }
+  .up .d { color:var(--muted); font-size:12px; margin:4px 0; min-height:30px; }
+  .up .c { color:var(--gold); font-weight:700; font-size:14px; }
+  .row { display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:14px; }
+  .btn { background:var(--accent); color:#1a1a1a; border:0; border-radius:8px; padding:12px 20px; font-weight:800; font-size:16px; cursor:pointer; }
+  .btn.ghost { background:transparent; color:var(--muted); border:1px solid #3a4150; font-size:12px; padding:8px 12px; font-weight:600; }
+  .money { font-size:18px; color:var(--gold); font-weight:800; }
+  p.help { color:var(--muted); font-size:13px; margin:6px 0 0; }
+</style>
+</head>
+<body>
+<h1>🏀 Canasta Infinita <small style="color:var(--muted);font-size:13px;font-weight:400">prototipo</small></h1>
+<div id="wrap">
+  <canvas id="c" width="960" height="540"></canvas>
+  <div id="overlay"><div class="card" id="card"></div></div>
+</div>
+<p class="help">Clic, toque o <b>Espacio</b> para lanzar cuando la flecha esté en la zona verde. Centro exacto = tiro limpio (+50%). Mete todos los balones del carro y se recarga al instante.</p>
+
+<script>
+const cv = document.getElementById('c'), cx = cv.getContext('2d');
+const W = 960, H = 540, FLOOR = 470, HOOP = { x: 862, y: 230 };
+
+// ---------- Mejoras (todo el balance está aquí) ----------
+const UPS = [
+  { id:'aim',    name:'Puntería',       base:20,  g:1.9, max:10, desc:l=>`Zona verde más grande (+${l*12}%)` },
+  { id:'dist',   name:'Distancia',      base:30,  g:3.4, max:5,  desc:l=>`Tiras desde más lejos: ${DIST[l].label}, ${DIST[l].pts} pts por canasta` },
+  { id:'rack',   name:'Más balones',    base:15,  g:1.75,max:6,  desc:l=>`${6+l} balones por carro` },
+  { id:'reload', name:'Recarga rápida', base:20,  g:1.8, max:10, desc:l=>`Recargar tarda ${reloadTime(l).toFixed(2)} s` },
+  { id:'mult',   name:'Puntos x2',      base:120, g:4.5, max:8,  desc:l=>`Multiplicador de canasta x${2**l}` },
+  { id:'multi',  name:'Doble tiro',     base:200, g:6,   max:3,  desc:l=>`Lanzas ${1+l} balón(es) a la vez` },
+  { id:'luck',   name:'Suerte',         base:40,  g:2.1, max:10, desc:l=>`${luckChance(l)}% de balón dorado (x5)` },
+  { id:'mate',   name:'Compañero',      base:250, g:2.4, max:10, desc:l=>l ? `Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l)*100)}% acierto)` : 'Un compañero que también lanza' },
+  { id:'time',   name:'Día más largo',  base:80,  g:2.6, max:3,  desc:l=>`El día dura ${60+l*10} s` },
+];
+const DIST = [
+  { label:'tiro libre',   x:700, pts:1 },
+  { label:'media',        x:600, pts:2 },
+  { label:'triple',       x:490, pts:4 },
+  { label:'triple largo', x:380, pts:7 },
+  { label:'medio campo',  x:250, pts:12 },
+  { label:'campo entero', x:120, pts:20 },
+];
+const reloadTime = l => 2.2 * Math.pow(0.84, l);
+const luckChance = l => l ? 3 + l * 3 : 0;
+const mateEvery  = l => Math.max(0.6, 3.6 - l * 0.3);
+const mateAcc    = l => Math.min(0.9, 0.5 + l * 0.04);
+const cost = (u, l) => Math.ceil(u.base * Math.pow(u.g, l));
+
+// ---------- Guardado ----------
+const FRESH = () => ({ points:0, day:1, total:0, lv:Object.fromEntries(UPS.map(u=>[u.id,0])) });
+let S = FRESH();
+try { const raw = localStorage.getItem('canasta-save'); if (raw) S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } catch(e) {}
+const save = () => { try { localStorage.setItem('canasta-save', JSON.stringify(S)); } catch(e) {} };
+
+function fmt(n) {
+  n = Math.floor(n);
+  if (n < 1000) return String(n);
+  const u = ['K','M','B','T','Qa','Qi'];
+  let i = -1; while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; }
+  return n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0) + u[i];
+}
+
+// ---------- Sonido ----------
+let AC = null;
+function beep(f, d = 0.08, type = 'square', v = 0.05) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = f; g.gain.value = v;
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + d);
+    o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime + d);
+  } catch(e) {}
+}
+
+// ---------- Estado del día ----------
+let R = null, mode = 'menu';
+const balls = [], fx = [], texts = [];
+let shake = 0;
+
+function startDay() {
+  const L = S.lv;
+  R = { t: 60 + L.time * 10, balls: 6 + L.rack, reloading: 0, shots: 0, makes: 0, perfects: 0, golds: 0,
+        rackMade: 0, rackShot: 0, perfectRacks: 0, earned: 0, mateEarned: 0, m: 0, dir: 1, mateT: 0, best: 0, streak: 0 };
+  balls.length = fx.length = texts.length = 0;
+  mode = 'play'; hideOverlay();
+}
+
+function perBasket() { return DIST[S.lv.dist].pts * 2 ** S.lv.mult; }
+function zoneHalf() { return Math.max(0.05, (0.15 - S.lv.dist * 0.012) * (1 + S.lv.aim * 0.12)); }
+const playerX = () => DIST[S.lv.dist].x;
+
+function shoot() {
+  if (mode !== 'play' || R.t <= 0 || R.reloading > 0 || R.balls <= 0) return;
+  const off = Math.abs(R.m - 0.5), z = zoneHalf();
+  const made = off < z, perfect = off < z * 0.3;
+  const n = 1 + S.lv.multi;
+  R.balls--; R.shots += n; R.rackShot++;
+  if (made) { R.rackMade++; R.streak++; R.best = Math.max(R.best, R.streak); } else R.streak = 0;
+  for (let i = 0; i < n; i++) {
+    const gold = Math.random() * 100 < luckChance(S.lv.luck);
+    launch(playerX() + 20, FLOOR - 95, made, { perfect, gold, delay: i * 0.12, mate: false });
+  }
+  beep(220, 0.05, 'triangle');
+  if (R.balls === 0) {
+    if (R.rackMade === R.rackShot && made) {
+      R.perfectRacks++;
+      R.balls = 6 + S.lv.rack;
+      addText(playerX(), FLOOR - 180, '¡CARRO PERFECTO! recarga gratis', '#3ddc84', 26);
+      beep(880, 0.15, 'square'); setTimeout(() => beep(1175, 0.2, 'square'), 90);
+    } else R.reloading = reloadTime(S.lv.reload);
+    R.rackMade = R.rackShot = 0;
+  }
+}
+
+function launch(x0, y0, made, o) {
+  const tx = made ? HOOP.x : HOOP.x + (Math.random() < .5 ? -30 : 30);
+  const dur = 0.55 + (HOOP.x - x0) / 1400;
+  balls.push({ x0, y0, tx, ty: HOOP.y - 6, t: -o.delay, dur, made, phase: 'air', x: x0, y: y0,
+               arc: 120 + (HOOP.x - x0) * 0.35, ...o });
+}
+
+function scoreBall(b) {
+  let pts = perBasket();
+  if (b.mate) pts = Math.max(1, Math.floor(pts * 0.5));
+  if (b.perfect) pts = Math.floor(pts * 1.5);
+  if (b.gold) pts *= 5;
+  S.points += pts; S.total += pts; R.earned += pts;
+  if (b.mate) R.mateEarned += pts;
+  R.makes++; if (b.perfect && !b.mate) R.perfects++; if (b.gold) R.golds++;
+  const col = b.gold ? '#ffd23f' : b.perfect ? '#3ddc84' : '#fff';
+  addText(HOOP.x - 10, HOOP.y - 40, '+' + fmt(pts) + (b.perfect ? ' ¡limpia!' : ''), col, b.gold ? 30 : 22);
+  burst(HOOP.x, HOOP.y + 10, b.gold ? '#ffd23f' : '#ff8a2a', b.gold ? 26 : 12);
+  shake = Math.max(shake, b.gold ? 10 : 4);
+  beep(b.gold ? 990 : 660, 0.07, 'square'); setTimeout(() => beep(b.gold ? 1320 : 880, 0.09, 'square'), 60);
+}
+
+function addText(x, y, s, c, size = 22) { texts.push({ x, y, s, c, size, life: 1.1 }); }
+function burst(x, y, c, n) {
+  for (let i = 0; i < n; i++) fx.push({ x, y, vx: (Math.random() - .5) * 300, vy: -Math.random() * 260, c, life: .7 });
+}
+
+// ---------- Bucle ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  update(dt); draw(); requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  if (mode === 'play') {
+    R.t -= dt;
+    R.m += R.dir * dt * 1.25;
+    if (R.m > 1) { R.m = 1; R.dir = -1; } if (R.m < 0) { R.m = 0; R.dir = 1; }
+    if (R.reloading > 0) { R.reloading -= dt; if (R.reloading <= 0) { R.reloading = 0; R.balls = 6 + S.lv.rack; beep(440, .05); } }
+    if (S.lv.mate && R.t > 0) {
+      R.mateT += dt;
+      if (R.mateT >= mateEvery(S.lv.mate)) {
+        R.mateT = 0; R.shots++;
+        launch(800, FLOOR - 110, Math.random() < mateAcc(S.lv.mate), { mate: true, gold: Math.random() * 100 < luckChance(S.lv.luck), delay: 0, perfect: false });
+      }
+    }
+    if (R.t <= 0 && !balls.some(b => b.phase === 'air')) endDay();
+  }
+  for (const b of balls) {
+    b.t += dt;
+    if (b.t < 0) continue;
+    if (b.phase === 'air') {
+      const p = Math.min(1, b.t / b.dur);
+      b.x = b.x0 + (b.tx - b.x0) * p;
+      b.y = b.y0 + (b.ty - b.y0) * p - b.arc * 4 * p * (1 - p);
+      if (p >= 1) {
+        b.phase = 'fall';
+        if (b.made) { b.vx = 0; b.vy = 140; if (mode === 'play') scoreBall(b); }
+        else { b.vx = (b.tx < HOOP.x ? -1 : 1) * (120 + Math.random() * 120); b.vy = -220; beep(120, .06, 'sawtooth', .03); if (!b.mate && mode === 'play') addText(b.tx, HOOP.y - 30, 'fallo', '#ff5c5c', 16); }
+      }
+    } else {
+      b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.y > FLOOR - 14) { b.y = FLOOR - 14; b.vy *= -0.5; b.vx *= 0.8; }
+      b.life = (b.life ?? 1.4) - dt;
+    }
+  }
+  for (let i = balls.length - 1; i >= 0; i--) if (balls[i].life <= 0) balls.splice(i, 1);
+  for (const p of fx) { p.vy += 700 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  for (let i = fx.length - 1; i >= 0; i--) if (fx[i].life <= 0) fx.splice(i, 1);
+  for (const t of texts) { t.y -= 40 * dt; t.life -= dt; }
+  for (let i = texts.length - 1; i >= 0; i--) if (texts[i].life <= 0) texts.splice(i, 1);
+  shake *= Math.pow(0.002, dt);
+}
+
+// ---------- Dibujo ----------
+function draw() {
+  cx.save();
+  if (shake > .3) cx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+  const sky = cx.createLinearGradient(0, 0, 0, FLOOR);
+  sky.addColorStop(0, '#2b3350'); sky.addColorStop(1, '#4a3d5c');
+  cx.fillStyle = sky; cx.fillRect(-20, -20, W + 40, FLOOR + 20);
+  cx.fillStyle = '#b8743a'; cx.fillRect(-20, FLOOR, W + 40, H - FLOOR + 20);
+  cx.fillStyle = '#a5672f'; for (let x = 0; x < W; x += 60) cx.fillRect(x, FLOOR, 2, H - FLOOR);
+  // marcas de distancia
+  cx.font = '11px system-ui'; cx.textAlign = 'center';
+  DIST.forEach((d, i) => {
+    cx.fillStyle = i <= S.lv.dist ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.15)';
+    cx.fillRect(d.x + 20, FLOOR, 3, 12); cx.fillText(d.label, d.x + 20, FLOOR + 26);
+  });
+  // canasta
+  cx.fillStyle = '#666'; cx.fillRect(918, HOOP.y - 30, 8, FLOOR - HOOP.y + 30);
+  cx.fillStyle = '#eee'; cx.fillRect(900, HOOP.y - 95, 12, 110);
+  cx.strokeStyle = '#d33'; cx.lineWidth = 2; cx.strokeRect(902, HOOP.y - 45, 8, 40);
+  cx.strokeStyle = 'rgba(255,255,255,.7)'; cx.lineWidth = 1.5;
+  for (let i = 0; i <= 4; i++) { cx.beginPath(); cx.moveTo(HOOP.x - 26 + i * 13, HOOP.y); cx.lineTo(HOOP.x - 16 + i * 8, HOOP.y + 38); cx.stroke(); }
+  // compañero
+  if (S.lv.mate) person(790, '#4aa3ff', 0.85);
+  // jugador
+  person(playerX(), '#ff8a2a', 1);
+  // balones
+  for (const b of balls) if (b.t >= 0 && !(b.phase === 'fall' && b.made && b.y < HOOP.y + 2)) ball(b.x, b.y, b.gold);
+  cx.strokeStyle = '#e8572a'; cx.lineWidth = 5; cx.beginPath(); cx.moveTo(HOOP.x - 30, HOOP.y); cx.lineTo(HOOP.x + 34, HOOP.y); cx.stroke();
+  for (const b of balls) if (b.t >= 0 && b.phase === 'fall' && b.made && b.y < HOOP.y + 2) ball(b.x, b.y, b.gold);
+  for (const p of fx) { cx.globalAlpha = Math.max(0, p.life / .7); cx.fillStyle = p.c; cx.fillRect(p.x, p.y, 5, 5); }
+  cx.globalAlpha = 1;
+  if (mode === 'play') { meter(); hud(); }
+  for (const t of texts) {
+    cx.globalAlpha = Math.max(0, Math.min(1, t.life)); cx.fillStyle = t.c; cx.font = `800 ${t.size}px system-ui`;
+    cx.textAlign = 'center'; cx.strokeStyle = 'rgba(0,0,0,.6)'; cx.lineWidth = 4; cx.strokeText(t.s, t.x, t.y); cx.fillText(t.s, t.x, t.y);
+  }
+  cx.globalAlpha = 1; cx.restore();
+}
+
+function person(x, col, s) {
+  const y = FLOOR;
+  cx.fillStyle = '#222'; cx.fillRect(x - 10 * s, y - 40 * s, 8 * s, 40 * s); cx.fillRect(x + 2 * s, y - 40 * s, 8 * s, 40 * s);
+  cx.fillStyle = col; cx.fillRect(x - 14 * s, y - 85 * s, 28 * s, 46 * s);
+  cx.fillStyle = '#e0b48a'; cx.beginPath(); cx.arc(x, y - 98 * s, 13 * s, 0, 7); cx.fill();
+  cx.strokeStyle = '#e0b48a'; cx.lineWidth = 6 * s; cx.beginPath(); cx.moveTo(x + 10 * s, y - 80 * s); cx.lineTo(x + 22 * s, y - 104 * s); cx.stroke();
+}
+
+function ball(x, y, gold) {
+  cx.fillStyle = gold ? '#ffd23f' : '#f07a22'; cx.beginPath(); cx.arc(x, y, 12, 0, 7); cx.fill();
+  cx.strokeStyle = 'rgba(0,0,0,.45)'; cx.lineWidth = 1.5;
+  cx.beginPath(); cx.arc(x, y, 12, 0, 7); cx.moveTo(x - 12, y); cx.lineTo(x + 12, y); cx.moveTo(x, y - 12); cx.lineTo(x, y + 12); cx.stroke();
+}
+
+function meter() {
+  const x = playerX() - 60, top = FLOOR - 190, h = 170, z = zoneHalf();
+  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(x, top, 18, h);
+  cx.fillStyle = '#3ddc84'; cx.fillRect(x, top + h * (0.5 - z), 18, h * z * 2);
+  cx.fillStyle = '#b6ffd5'; cx.fillRect(x, top + h * (0.5 - z * .3), 18, h * z * .6);
+  const my = top + h * R.m;
+  cx.fillStyle = R.reloading > 0 || R.balls === 0 ? '#777' : '#fff';
+  cx.beginPath(); cx.moveTo(x + 22, my); cx.lineTo(x + 34, my - 7); cx.lineTo(x + 34, my + 7); cx.fill();
+  cx.fillRect(x - 2, my - 1.5, 22, 3);
+}
+
+function hud() {
+  cx.textAlign = 'left'; cx.fillStyle = '#fff'; cx.font = '800 22px system-ui';
+  cx.fillText(`Día ${S.day}`, 18, 34);
+  cx.fillStyle = R.t < 10 ? '#ff5c5c' : '#fff'; cx.fillText(`⏱ ${Math.max(0, R.t).toFixed(1)} s`, 18, 64);
+  cx.fillStyle = '#ffd23f'; cx.textAlign = 'right'; cx.fillText(`${fmt(S.points)} pts`, W - 18, 34);
+  cx.fillStyle = '#ccc'; cx.font = '600 14px system-ui'; cx.fillText(`${fmt(perBasket())} por canasta`, W - 18, 56);
+  // carro de balones
+  cx.textAlign = 'left';
+  const n = 6 + S.lv.rack;
+  for (let i = 0; i < n; i++) {
+    cx.globalAlpha = i < R.balls ? 1 : .2;
+    cx.fillStyle = '#f07a22'; cx.beginPath(); cx.arc(30 + i * 22, 96, 8, 0, 7); cx.fill();
+  }
+  cx.globalAlpha = 1;
+  if (R.reloading > 0) {
+    const p = 1 - R.reloading / reloadTime(S.lv.reload);
+    cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(20, 112, 160, 8); cx.fillStyle = '#4aa3ff'; cx.fillRect(20, 112, 160 * p, 8);
+    cx.fillStyle = '#9cc9ff'; cx.font = '600 12px system-ui'; cx.fillText('recargando…', 20, 136);
+  }
+  if (R.streak >= 3) { cx.fillStyle = '#3ddc84'; cx.font = '800 16px system-ui'; cx.fillText(`Racha x${R.streak}`, 20, 160); }
+}
+
+// ---------- Pantallas ----------
+const overlay = document.getElementById('overlay'), card = document.getElementById('card');
+function hideOverlay() { overlay.classList.add('hidden'); }
+
+function endDay() {
+  mode = 'end';
+  const pct = R.shots ? Math.round(R.makes / R.shots * 100) : 0;
+  const stats = [
+    ['Puntos ganados', fmt(R.earned)], ['Canastas', `${R.makes} / ${R.shots}`], ['Acierto', pct + '%'],
+    ['Tiros limpios', R.perfects], ['Mejor racha', R.best], ['Carros perfectos', R.perfectRacks],
+    ['Balones dorados', R.golds], ['Del compañero', fmt(R.mateEarned)],
+  ];
+  card.dataset.stats = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+  card.dataset.title = `Fin del día ${S.day}`;
+  S.day++; save(); renderShop();
+}
+
+function renderShop() {
+  const items = UPS.map(u => {
+    const l = S.lv[u.id], maxed = l >= u.max, c = cost(u, l);
+    return `<button class="up" data-id="${u.id}" ${maxed || S.points < c ? 'disabled' : ''}>
+      <div class="t"><span>${u.name}</span><span style="color:var(--muted)">Nv ${l}/${u.max}</span></div>
+      <div class="d">${maxed ? u.desc(l) : 'Siguiente: ' + u.desc(l + 1)}</div>
+      <div class="c">${maxed ? 'MÁXIMO' : fmt(c) + ' pts'}</div></button>`;
+  }).join('');
+  card.innerHTML = `
+    <h2>${card.dataset.title || '🏀 Canasta Infinita'}</h2>
+    ${card.dataset.stats ? `<div class="stats">${card.dataset.stats}</div>` : `<p class="help">Tienes un minuto al día para encestar. Gana puntos, compra mejoras y vuelve más fuerte mañana.</p>`}
+    <div class="row" style="margin:0 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span><span style="color:var(--muted);font-size:13px">Total histórico: ${fmt(S.total)}</span></div>
+    <div class="shop">${items}</div>
+    <div class="row"><button class="btn ghost" id="reset">Borrar partida</button><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>`;
+  card.querySelectorAll('.up').forEach(b => b.onclick = () => {
+    const u = UPS.find(x => x.id === b.dataset.id), c = cost(u, S.lv[u.id]);
+    if (S.points >= c && S.lv[u.id] < u.max) { S.points -= c; S.lv[u.id]++; save(); beep(760, .08); renderShop(); }
+  });
+  card.querySelector('#go').onclick = startDay;
+  card.querySelector('#reset').onclick = () => { if (confirm('¿Borrar todo el progreso?')) { S = FRESH(); save(); delete card.dataset.stats; delete card.dataset.title; renderShop(); } };
+  overlay.classList.remove('hidden');
+}
+
+cv.addEventListener('pointerdown', e => { e.preventDefault(); shoot(); });
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); if (mode === 'play') shoot(); else if (!e.repeat) startDay(); }
+});
+
+renderShop();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
