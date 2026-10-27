@@ -3,8 +3,10 @@
 Juego **incremental** de baloncesto: cada "día" tienes 30 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
 
 - **Jugar online:** https://canastaman.netlify.app
-- `index.html`: versión **3D** (la principal).
-- `clasico.html`: la primera versión **2D**, con el medidor de pulsar a tiempo.
+- `index.html`: versión **2D** (la principal): pulsas cuando la flecha está en la zona verde.
+- `3d.html`: versión **3D**, se lanza deslizando el dedo.
+
+Las dos tienen el mismo modo carrera, días de 30 s y los mismos precios.
 
 ## Modo carrera
 
@@ -33,7 +35,7 @@ Las ligas están en la tabla `STAGES` del código.
 
 ## Cómo está hecho
 
-Es un solo archivo, `index.html`, con HTML, CSS y **JavaScript**. Usa una sola librería:
+La versión 2D (`index.html`) no usa ninguna librería: dibuja con **Canvas 2D** del navegador. La versión 3D es un solo archivo, `3d.html`, con HTML, CSS y **JavaScript**, y usa una sola librería:
 
 | Qué | Con qué |
 |---|---|
