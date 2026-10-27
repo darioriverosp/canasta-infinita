@@ -1,10 +1,27 @@
 # 🏀 CanastaMan
 
-Juego **incremental** de baloncesto: cada "día" tienes 60 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
+Juego **incremental** de baloncesto: cada "día" tienes 30 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
 
 - **Jugar online:** https://canasta-infinita.netlify.app
 - `index.html`: versión **3D** (la principal).
 - `clasico.html`: la primera versión **2D**, con el medidor de pulsar a tiempo.
+
+## Modo carrera
+
+- Al empezar **creas tu personaje**: nombre, número de camiseta y tono de piel.
+- Empiezas en la **cancha del barrio**. Cada liga tiene un **objetivo**: hacer X puntos en un solo día.
+- Si lo cumples, **un cazatalentos te hace una oferta** y decides si la aceptas o no.
+- Al aceptar cambias de equipo: **camiseta nueva** (con tu nombre y dorsal en la espalda), **cancha nueva** y cada canasta vale más. Las mejoras se quedan.
+
+| Liga | Equipo | Canasta vale | Objetivo para subir |
+|---|---|---|---|
+| Cancha del barrio | Barrio | x1 | 25 pts en un día |
+| Liga de Secundaria | Halcones | x3 | 400 |
+| Liga Universitaria | Toros | x10 | 6.000 |
+| Liga Profesional | Titanes | x30 | 120.000 |
+| Liga de Leyendas | Leyendas | x100 | — |
+
+Las ligas están en la tabla `STAGES` del código.
 
 ## Cómo se juega (3D)
 
@@ -58,6 +75,8 @@ Todo el balance está en tablas al principio del script, para ajustarlo sin toca
 - `UPS`: cada mejora con su coste base (`base`), cuánto se encarece por nivel (`g`) y nivel máximo (`max`). Coste = `base × g^nivel`.
 - `DIST`: las distancias de tiro reales (de 4,6 m de tiro libre a 12,8 m de medio campo) y los puntos por canasta.
 - `powAssist`, `yawAssist` y `guideFrac`: cuánto ayuda la Puntería y cuánto se ve de la guía.
+
+El día dura 30 s (`DAY_BASE`) y la mejora Día más largo suma 5 s por nivel (`DAY_STEP`).
 
 Mejoras: Puntería, Distancia, Más balones, Recarga rápida, Puntos x2, Doble tiro, Suerte (balón dorado x5), Compañero y Día más largo.
 

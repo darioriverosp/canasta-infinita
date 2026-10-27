@@ -65,6 +65,23 @@
   .btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-size:12px; padding:8px 12px; font-weight:600; }
   .foot { margin-top:14px; font-size:13px; color:var(--muted); }
   .foot a { color:var(--muted); }
+  #goal { margin-top:6px; font-size:14px; }
+  #goal.done { color:var(--good); }
+  .career { display:flex; gap:12px; align-items:center; background:var(--card); border-radius:10px; padding:10px 12px; margin:10px 0; }
+  .shirt { flex:none; width:52px; height:58px; border-radius:8px 8px 6px 6px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px; }
+  .career b { display:block; font-size:16px; }
+  .career span { color:var(--muted); font-size:13px; }
+  .bar { height:6px; background:#1b1f28; border-radius:3px; margin-top:6px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--good); }
+  .field { display:flex; flex-direction:column; gap:6px; margin:12px 0; font-weight:700; font-size:14px; }
+  .field input { font:inherit; font-size:18px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); user-select:text; -webkit-user-select:text; touch-action:auto; }
+  .swatches { display:flex; gap:10px; }
+  .swatches button { width:40px; height:40px; border-radius:50%; border:3px solid transparent; cursor:pointer; }
+  .swatches button.on { border-color:var(--accent); }
+  .offer { text-align:center; padding:8px 0; }
+  .offer .emoji { font-size:52px; }
+  .offer p { font-size:17px; line-height:1.5; max-width:520px; margin:10px auto 18px; }
+  .offer .row { justify-content:center; }
   .credit { margin:16px 0 0; padding-top:12px; border-top:1px solid var(--line); text-align:center; font-size:13px; color:var(--muted); }
   @media (max-width:600px) {
     .shop { grid-template-columns:1fr 1fr; }
@@ -90,6 +107,7 @@
   <div class="tr">
     <div class="big" id="pts">0 pts</div>
     <div class="small" id="per">1 por canasta</div>
+    <div class="small" id="goal"></div>
   </div>
   <div id="power"><div class="zone"></div><div class="fill"></div><div class="mark"></div></div>
   <div id="hint">Desliza hacia el aro para lanzar 👆</div>
@@ -117,17 +135,39 @@ const DIST = [
   { label: 'logo',         d: 10.8, pts: 12 },
   { label: 'medio campo',  d: 12.8, pts: 20 },
 ];
+const DAY_BASE = 30, DAY_STEP = 5;                         // el día dura 30 s (+5 s por mejora)
 const UPS = [
-  { id: 'aim',    name: 'Puntería',       base: 20,  g: 1.9,  max: 10, desc: l => `Zona verde más ancha y guía de tiro más larga (nivel ${l})` },
-  { id: 'dist',   name: 'Distancia',      base: 30,  g: 3.4,  max: 5,  desc: l => `Tiras desde ${DIST[l].label} (${DIST[l].d} m): ${DIST[l].pts} pts por canasta` },
-  { id: 'rack',   name: 'Más balones',    base: 15,  g: 1.75, max: 6,  desc: l => `${6 + l} balones por carro` },
-  { id: 'reload', name: 'Recarga rápida', base: 20,  g: 1.8,  max: 10, desc: l => `Recargar tarda ${reloadTime(l).toFixed(2)} s` },
-  { id: 'mult',   name: 'Puntos x2',      base: 120, g: 4.5,  max: 8,  desc: l => `Multiplicador de canasta x${2 ** l}` },
-  { id: 'multi',  name: 'Doble tiro',     base: 200, g: 6,    max: 3,  desc: l => `Lanzas ${1 + l} balones a la vez` },
-  { id: 'luck',   name: 'Suerte',         base: 40,  g: 2.1,  max: 10, desc: l => `${luckChance(l)}% de balón dorado (x5)` },
-  { id: 'mate',   name: 'Compañero',      base: 250, g: 2.4,  max: 10, desc: l => `Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l) * 100)}% acierto)` },
-  { id: 'time',   name: 'Día más largo',  base: 80,  g: 2.6,  max: 3,  desc: l => `El día dura ${60 + l * 10} s` },
+  { id: 'aim',    name: 'Puntería',       base: 8,   g: 1.9,  max: 10, desc: l => `Zona verde más ancha y guía de tiro más larga (nivel ${l})` },
+  { id: 'dist',   name: 'Distancia',      base: 12,  g: 3.4,  max: 5,  desc: l => `Tiras desde ${DIST[l].label} (${DIST[l].d} m): ${DIST[l].pts} pts por canasta` },
+  { id: 'rack',   name: 'Más balones',    base: 6,   g: 1.75, max: 6,  desc: l => `${6 + l} balones por carro` },
+  { id: 'reload', name: 'Recarga rápida', base: 8,   g: 1.8,  max: 10, desc: l => `Recargar tarda ${reloadTime(l).toFixed(2)} s` },
+  { id: 'mult',   name: 'Puntos x2',      base: 50,  g: 4.5,  max: 8,  desc: l => `Multiplicador de canasta x${2 ** l}` },
+  { id: 'multi',  name: 'Doble tiro',     base: 80,  g: 6,    max: 3,  desc: l => `Lanzas ${1 + l} balones a la vez` },
+  { id: 'luck',   name: 'Suerte',         base: 15,  g: 2.1,  max: 10, desc: l => `${luckChance(l)}% de balón dorado (x5)` },
+  { id: 'mate',   name: 'Compañero',      base: 100, g: 2.4,  max: 10, desc: l => `Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l) * 100)}% acierto)` },
+  { id: 'time',   name: 'Día más largo',  base: 30,  g: 2.6,  max: 4,  desc: l => `El día dura ${DAY_BASE + l * DAY_STEP} s` },
 ];
+
+// ================= Carrera: cada liga tiene su camiseta, su pista y su objetivo =================
+// goal = puntos que hay que hacer en un solo día para que te vea un cazatalentos de la siguiente liga
+const STAGES = [
+  { name: 'Cancha del barrio',  team: 'Barrio',    jersey: '#ff8a2a', court: '#2f6f9f', key: '#d9692b', mult: 1,   goal: 25,
+    sky: ['#1d2550', '#6b3f7a', '#e0716a', '#ffb36b'], fog: '#7a4a78' },
+  { name: 'Liga de Secundaria', team: 'Halcones',  jersey: '#2e9d5b', court: '#c08a55', key: '#2e9d5b', mult: 3,   goal: 400,
+    sky: ['#2f6fc4', '#6fa8e6', '#b9dcf5', '#f3e6c6'], fog: '#9cc3e6',
+    offer: 'Un cazatalentos de la <b>Liga de Secundaria</b> te estaba viendo jugar. Quiere que te unas a los <b>Halcones</b>.' },
+  { name: 'Liga Universitaria', team: 'Toros',     jersey: '#c8323c', court: '#b47a48', key: '#c8323c', mult: 10,  goal: 6000,
+    sky: ['#070b1e', '#141c3d', '#2a2f5c', '#4a3d6b'], fog: '#1b2040',
+    offer: 'Un ojeador de la universidad vio tus partidos. Te ofrecen una <b>beca</b> para jugar con los <b>Toros</b>.' },
+  { name: 'Liga Profesional',   team: 'Titanes',   jersey: '#6b3fc9', court: '#a8703f', key: '#6b3fc9', mult: 30,  goal: 120000,
+    sky: ['#0b0820', '#2b1450', '#7a2e6e', '#e05a5a'], fog: '#2b1450',
+    offer: '¡Te llegó una oferta profesional! Los <b>Titanes</b> quieren ficharte.' },
+  { name: 'Liga de Leyendas',   team: 'Leyendas',  jersey: '#1b1b1b', court: '#2c2c34', key: '#c9a227', mult: 100, goal: null,
+    sky: ['#000008', '#101030', '#302050', '#c98a3a'], fog: '#151530',
+    offer: 'Eres la estrella de la liga. Te llaman para jugar con las <b>Leyendas</b>, lo más alto del baloncesto.' },
+];
+const SKINS = ['#f1c9a5', '#d9a47c', '#b07850', '#7a4e30', '#4e3020'];
+const stage = () => STAGES[S.stage];
 const reloadTime = l => 2.2 * Math.pow(0.84, l);
 const luckChance = l => l ? 3 + l * 3 : 0;
 const mateEvery  = l => Math.max(0.8, 3.6 - l * 0.28);
@@ -138,10 +178,10 @@ const guideFrac  = l => Math.min(0.85, 0.3 + l * 0.055);   // qué parte de la t
 const cost = (u, l) => Math.ceil(u.base * Math.pow(u.g, l));
 
 // ================= Guardado =================
-const FRESH = () => ({ points: 0, day: 1, total: 0, lv: Object.fromEntries(UPS.map(u => [u.id, 0])) });
+const FRESH = () => ({ points: 0, day: 1, total: 0, stage: 0, best: 0, char: null, lv: Object.fromEntries(UPS.map(u => [u.id, 0])) });
 let S = FRESH();
-try { const raw = localStorage.getItem('canasta3d-save'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch (e) {}
-const save = () => { try { localStorage.setItem('canasta3d-save', JSON.stringify(S)); } catch (e) {} };
+try { const raw = localStorage.getItem('canastaman-save'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch (e) {}
+const save = () => { try { localStorage.setItem('canastaman-save', JSON.stringify(S)); } catch (e) {} };
 
 function fmt(n) {
   n = Math.floor(n);
@@ -189,10 +229,10 @@ function canvasTex(w, h, draw) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
-// Cielo de atardecer
-scene.background = canvasTex(4, 256, (g, w, h) => {
+// Cielo (cambia con cada liga: atardecer, día, noche...)
+const skyTex = sky => canvasTex(4, 256, (g, w, h) => {
   const gr = g.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, '#1d2550'); gr.addColorStop(0.45, '#6b3f7a'); gr.addColorStop(0.75, '#e0716a'); gr.addColorStop(1, '#ffb36b');
+  gr.addColorStop(0, sky[0]); gr.addColorStop(0.45, sky[1]); gr.addColorStop(0.75, sky[2]); gr.addColorStop(1, sky[3]);
   g.fillStyle = gr; g.fillRect(0, 0, w, h);
 });
 scene.fog = new THREE.Fog('#7a4a78', 28, 75);
@@ -210,11 +250,15 @@ asphalt.rotation.x = -Math.PI / 2; asphalt.position.y = -0.01; asphalt.receiveSh
 
 // Pista con líneas dibujadas en una textura (x de -9 a 9, z de -3 a 19)
 const K = 1024 / 18;
-const courtTex = canvasTex(1024, Math.round(22 * K), (g, w, h) => {
+const courtTex = st => canvasTex(1024, Math.round(22 * K), (g, w, h) => {
   const X = x => (x + 9) * K, Z = z => (z + 3) * K;
   g.fillStyle = '#2b3140'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#2f6f9f'; g.fillRect(X(-7.5), Z(-1.2), 15 * K, 14 * K);         // media pista azul
-  g.fillStyle = '#d9692b'; g.fillRect(X(-2.45), Z(-1.2), 4.9 * K, 5.8 * K);       // zona
+  g.fillStyle = st.court; g.fillRect(X(-7.5), Z(-1.2), 15 * K, 14 * K);           // media pista
+  if (st.court !== STAGES[0].court) {                                             // tablones de parqué en los gimnasios
+    g.fillStyle = 'rgba(0,0,0,.07)';
+    for (let x = -7.5; x < 7.5; x += 0.5) g.fillRect(X(x), Z(-1.2), 0.03 * K, 14 * K);
+  }
+  g.fillStyle = st.key; g.fillRect(X(-2.45), Z(-1.2), 4.9 * K, 5.8 * K);          // zona
   g.strokeStyle = '#f4f1e8'; g.lineWidth = 0.06 * K;
   g.strokeRect(X(-7.5), Z(-1.2), 15 * K, 14 * K);
   g.strokeRect(X(-2.45), Z(-1.2), 4.9 * K, 5.8 * K);
@@ -226,7 +270,7 @@ const courtTex = canvasTex(1024, Math.round(22 * K), (g, w, h) => {
   g.font = `700 ${0.42 * K}px system-ui`; g.fillStyle = 'rgba(255,255,255,.55)'; g.textAlign = 'left';
   DIST.forEach(d => { g.fillRect(X(1.0), Z(d.d) - 1, 0.5 * K, 0.05 * K); g.fillText(d.label, X(1.6), Z(d.d) + 0.15 * K); });
 });
-const court = new THREE.Mesh(new THREE.PlaneGeometry(18, 22), new THREE.MeshStandardMaterial({ map: courtTex, roughness: 0.85 }));
+const court = new THREE.Mesh(new THREE.PlaneGeometry(18, 22), new THREE.MeshStandardMaterial({ roughness: 0.85 }));
 court.rotation.x = -Math.PI / 2; court.position.set(0, 0, 8); court.receiveShadow = true; scene.add(court);
 
 // Canasta: poste, brazo, tablero, aro y red
@@ -321,8 +365,10 @@ function makePlayer(jersey) {
   add(new THREE.BoxGeometry(0.2, 0.1, 0.32), white, -0.12, 0.05, -0.04);
   add(new THREE.BoxGeometry(0.2, 0.1, 0.32), white, 0.12, 0.05, -0.04);
   add(new THREE.BoxGeometry(0.46, 0.32, 0.26), dark, 0, 0.9, 0);
-  add(new THREE.BoxGeometry(0.48, 0.6, 0.27), shirt, 0, 1.33, 0);
+  const back = new THREE.MeshStandardMaterial({ flatShading: true });             // espalda con nombre y dorsal
+  add(new THREE.BoxGeometry(0.48, 0.6, 0.27), [shirt, shirt, shirt, shirt, back, shirt], 0, 1.33, 0);
   add(new THREE.IcosahedronGeometry(0.15, 1), skin, 0, 1.82, 0);
+  add(new THREE.BoxGeometry(0.27, 0.08, 0.27), dark, 0, 1.94, 0.01);              // pelo
   const arms = [];
   for (const sx of [-0.31, 0.31]) {
     const pivot = new THREE.Group(); pivot.position.set(sx, 1.58, 0); g.add(pivot);
@@ -330,10 +376,35 @@ function makePlayer(jersey) {
   }
   const held = new THREE.Mesh(ballGeo, ballMat); held.position.set(0, 1.62, -0.42); held.castShadow = true; g.add(held);
   scene.add(g);
-  return { g, arms, held, throwT: 9 };
+  return { g, arms, held, throwT: 9, skin, shirt, back };
 }
 const player = makePlayer('#ff8a2a');
 const mate = makePlayer('#4aa3ff'); mate.g.position.set(-2.9, 0, 5.4); mate.g.rotation.y = Math.atan2(2.9, 5.4) * -1; mate.g.visible = false;
+
+// Camiseta: color del equipo, nombre y dorsal en la espalda
+function dressPlayer(pl, jersey, name, num, skin) {
+  pl.shirt.color.set(jersey); pl.skin.color.set(skin);
+  const light = new THREE.Color(jersey).getHSL({}).l > 0.6;
+  pl.back.map?.dispose();
+  pl.back.map = canvasTex(128, 160, (g, w, h) => {
+    g.fillStyle = jersey; g.fillRect(0, 0, w, h);
+    g.fillStyle = STAGES[S.stage].key === '#c9a227' ? '#c9a227' : light ? '#1b1f28' : '#ffffff';
+    g.textAlign = 'center';
+    g.font = '800 20px system-ui'; g.fillText(name.toUpperCase().slice(0, 10), w / 2, 34);
+    g.font = '900 86px system-ui'; g.fillText(String(num), w / 2, 126);
+  });
+  pl.back.needsUpdate = true;
+}
+// Aplica la liga actual: cielo, niebla, pista y camisetas
+function applyStage() {
+  const st = stage();
+  scene.background = skyTex(st.sky);
+  scene.fog.color.set(st.fog);
+  court.material.map?.dispose(); court.material.map = courtTex(st); court.material.needsUpdate = true;
+  const c = S.char || { name: 'Jugador', num: 7, skin: SKINS[1] };
+  dressPlayer(player, st.jersey, c.name, c.num, c.skin);
+  dressPlayer(mate, st.jersey, 'Compa', c.num === 23 ? 11 : 23, SKINS[3]);
+}
 
 // Guía de trayectoria
 const GUIDE_N = 28;
@@ -412,7 +483,7 @@ const $ = id => document.getElementById(id);
 function newRack() { R.rack = { size: 6 + S.lv.rack, made: 0, done: 0, closed: false }; R.balls = R.rack.size; drawRack(); }
 function startDay() {
   audio();
-  R = { t: 60 + S.lv.time * 10, reloading: 0, shots: 0, makes: 0, swish: 0, banks: 0, golds: 0, perfectRacks: 0,
+  R = { t: DAY_BASE + S.lv.time * DAY_STEP, reloading: 0, shots: 0, makes: 0, swish: 0, banks: 0, golds: 0, perfectRacks: 0,
         earned: 0, mateEarned: 0, mateT: 0, best: 0, streak: 0, thrown: 0 };
   newRack();
   for (const b of balls) scene.remove(b.mesh); balls.length = pending.length = 0;
@@ -420,14 +491,20 @@ function startDay() {
   zone = computeZone();
   const pz = $('power').querySelector('.zone');
   pz.style.bottom = (zone.lo / 2 * 100) + '%'; pz.style.height = ((zone.hi - zone.lo) / 2 * 100) + '%';
-  $('day').textContent = `Día ${S.day}`;
+  $('day').textContent = `Día ${S.day} · ${stage().team}`;
   $('per').textContent = `${fmt(perBasket())} por canasta · ${DIST[S.lv.dist].label}`;
   $('hint').style.opacity = 1;
   mode = 'play'; $('overlay').classList.add('hidden'); $('hud').classList.remove('hidden');
   updatePts();
 }
-const perBasket = () => DIST[S.lv.dist].pts * 2 ** S.lv.mult;
-const updatePts = () => { $('pts').textContent = `${fmt(S.points)} pts`; };
+const perBasket = () => DIST[S.lv.dist].pts * 2 ** S.lv.mult * stage().mult;
+function updatePts() {
+  $('pts').textContent = `${fmt(S.points)} pts`;
+  const goal = stage().goal, el = $('goal');
+  if (!goal) { el.textContent = '👑 Eres una leyenda'; return; }
+  el.textContent = R.earned >= goal ? '👀 ¡Un cazatalentos te está mirando!' : `🎯 Hoy: ${fmt(R.earned)} / ${fmt(goal)} pts`;
+  el.classList.toggle('done', R.earned >= goal);
+}
 function drawRack() {
   const n = R.rack.size; let html = '';
   for (let i = 0; i < n; i++) html += `<i class="${i < R.balls ? '' : 'off'}"></i>`;
@@ -533,7 +610,8 @@ canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', () => { drag = null; });
 // Teclado: mantener Espacio para cargar la fuerza, soltar para lanzar recto
 addEventListener('keydown', e => {
-  if (e.code !== 'Space') return; e.preventDefault();
+  if (e.code !== 'Space' || e.target.tagName === 'INPUT' || mode === 'create' || mode === 'offer') return;
+  e.preventDefault();
   if (mode === 'play') { if (!e.repeat && !charge) charge = { t: 0 }; }
   else if (!e.repeat) startDay();
 });
@@ -650,10 +728,63 @@ function endDay() {
   lastStats = { title: `Fin del día ${S.day}`, items: [
     ['Puntos ganados', fmt(R.earned)], ['Canastas', `${R.makes} / ${R.shots}`], ['Acierto', pct + '%'], ['Limpias', R.swish],
     ['De tablero', R.banks], ['Mejor racha', R.best], ['Carros perfectos', R.perfectRacks], ['Del compañero', fmt(R.mateEarned)] ] };
-  S.day++; save(); renderShop();
+  S.day++; S.best = Math.max(S.best, R.earned); save();
+  const goal = stage().goal;
+  if (goal && R.earned >= goal) renderOffer(); else renderShop();
+}
+
+const shirtHtml = (st, num) => {
+  const light = new THREE.Color(st.jersey).getHSL({}).l > 0.6;
+  return `<div class="shirt" style="background:${st.jersey};color:${st.key === '#c9a227' ? '#c9a227' : light ? '#1b1f28' : '#fff'}">${num}</div>`;
+};
+
+// Crear personaje (primera vez o al borrar la partida)
+function renderCreate() {
+  mode = 'create'; $('hud').classList.add('hidden');
+  const c = S.char || { name: '', num: 7, skin: SKINS[1] };
+  card.innerHTML = `
+    <h2>🏀 CanastaMan</h2>
+    <p class="help">Empiezas desde cero en la cancha del barrio. Haz puntos, mejora y que te vean los cazatalentos: secundaria, universidad, profesional… hasta las Leyendas.</p>
+    <label class="field">Nombre<input id="cName" maxlength="12" placeholder="Tu nombre" value="${c.name}" autocomplete="off"></label>
+    <label class="field">Número de camiseta<input id="cNum" type="number" min="0" max="99" inputmode="numeric" value="${c.num}"></label>
+    <div class="field">Tono de piel<div class="swatches">${SKINS.map(s => `<button type="button" data-skin="${s}" class="${s === c.skin ? 'on' : ''}" style="background:${s}" aria-label="Tono de piel"></button>`).join('')}</div></div>
+    <div class="row"><span></span><button class="btn" id="cGo">Empezar carrera ▶</button></div>
+    <p class="credit">Hecho con ❤️ por Gonzalo Dario Riveros Plaza</p>`;
+  let skin = c.skin;
+  const preview = () => { S.char = { name: $('cName').value.replace(/[<>&"]/g, '').trim() || 'Jugador', num: Math.max(0, Math.min(99, parseInt($('cNum').value) || 0)), skin }; applyStage(); };
+  card.querySelectorAll('[data-skin]').forEach(b => b.onclick = () => {
+    skin = b.dataset.skin; card.querySelectorAll('[data-skin]').forEach(x => x.classList.toggle('on', x === b)); preview();
+  });
+  $('cName').oninput = preview; $('cNum').oninput = preview;
+  $('cGo').onclick = () => { preview(); save(); beep(660, 0.08); renderShop(); };
+  $('overlay').classList.remove('hidden');
+}
+
+// Oferta del cazatalentos al cumplir el objetivo del día
+function renderOffer() {
+  mode = 'offer'; $('hud').classList.add('hidden');
+  const next = STAGES[S.stage + 1];
+  card.innerHTML = `<div class="offer">
+    <div class="emoji">📋</div>
+    <h2>¡Te estaban viendo!</h2>
+    <p>${next.offer}</p>
+    <div class="row" style="justify-content:center;gap:14px;margin-bottom:18px">${shirtHtml(stage(), S.char.num)} <span style="font-size:24px">→</span> ${shirtHtml(next, S.char.num)}</div>
+    <p style="font-size:14px;color:var(--muted);margin-top:0">Nueva camiseta, nueva cancha y cada canasta vale x${next.mult}. Tus mejoras se quedan.</p>
+    <div class="row"><button class="btn ghost" id="no">Rechazar</button><button class="btn" id="yes">¡Acepto! ✍️</button></div>
+  </div>`;
+  beep(523, 0.1); setTimeout(() => beep(659, 0.1), 110); setTimeout(() => beep(784, 0.18), 220);
+  $('yes').onclick = () => {
+    S.stage++; S.best = 0; save(); applyStage();
+    lastStats = { title: `¡Ya juegas con los ${stage().team}!`, items: lastStats.items };
+    beep(784, 0.1); setTimeout(() => beep(1047, 0.25), 120);
+    renderShop();
+  };
+  $('no').onclick = () => renderShop();
+  $('overlay').classList.remove('hidden');
 }
 
 function renderShop() {
+  mode = 'shop';
   $('hud').classList.add('hidden');
   const items = UPS.map(u => {
     const l = S.lv[u.id], maxed = l >= u.max, c = cost(u, l);
@@ -667,6 +798,11 @@ function renderShop() {
     ${lastStats ? `<div class="stats">${lastStats.items.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
       : `<p class="help"><b>Desliza el dedo (o arrastra con el ratón) hacia arriba</b> para lanzar: cuanto más largo el gesto, más fuerza. Intenta soltar con la barra en la zona verde. En PC también puedes mantener <b>Espacio</b> y soltar.<br>
          Canasta limpia +50%, de tablero +25%. Si metes todo el carro, se recarga gratis.</p>`}
+    <div class="career">${shirtHtml(stage(), S.char.num)}<div style="flex:1;min-width:0">
+      <b>${S.char.name} · ${stage().team}</b>
+      <span>${stage().name}${stage().goal ? ` · Objetivo: haz <b style="display:inline;font-size:13px;color:var(--text)">${fmt(stage().goal)} pts en un día</b> para que te vea un cazatalentos (récord: ${fmt(S.best)})` : ' · Has llegado a lo más alto'}</span>
+      ${stage().goal ? `<div class="bar"><i style="width:${Math.min(100, S.best / stage().goal * 100)}%"></i></div>` : ''}
+    </div></div>
     <div class="row"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
     <div class="row foot"><span>Total histórico: ${fmt(S.total)} · <a href="clasico.html">versión 2D</a></span><button class="btn ghost" id="reset">Borrar partida</button></div>
@@ -679,12 +815,13 @@ function renderShop() {
   const rb = $('reset');
   rb.onclick = () => {
     if (!rb.dataset.armed) { rb.dataset.armed = 1; rb.textContent = '¿Seguro? Pulsa otra vez'; return; }
-    S = FRESH(); lastStats = null; save(); renderShop();
+    S = FRESH(); lastStats = null; save(); applyStage(); renderCreate();
   };
   $('overlay').classList.remove('hidden');
 }
 
-renderShop();
+applyStage();
+if (S.char) renderShop(); else renderCreate();
 requestAnimationFrame(loop);
 window.__game = { get R() { return R; }, get S() { return S; }, shoot, startDay, computeZone };
 </script>
