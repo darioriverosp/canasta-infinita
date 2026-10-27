@@ -90,6 +90,18 @@
   footer a:hover { color:var(--accent); }
   footer nav { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
   footer .fine { font-size:11px; opacity:.75; }
+  footer .plays { color:var(--gold); font-weight:700; min-height:1em; }
+  footer .credits b { color:var(--text); font-weight:600; }
+  footer .social { gap:14px; margin:4px 0; }
+  footer .social a { border:0; color:var(--muted); }
+  footer .social a:hover { color:var(--accent); }
+  footer .social i { display:block; width:20px; height:20px; background:currentColor;
+    -webkit-mask:var(--icon) center/contain no-repeat; mask:var(--icon) center/contain no-repeat; }
+  dialog#fb { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:14px; padding:18px; width:min(460px, calc(100vw - 32px)); }
+  dialog#fb::backdrop { background:rgba(0,0,0,.6); }
+  dialog#fb h3 { margin:0 0 4px; }
+  .field select, .field textarea { font:inherit; font-size:16px; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); user-select:text; -webkit-user-select:text; }
+  .field textarea { resize:vertical; }
   /* Móvil: la tienda va debajo del juego en vez de encima, para que tenga espacio */
   @media (max-width:700px) {
     body { padding:8px 12px; }
@@ -120,10 +132,37 @@
 <p id="rotate">📱 Gira el móvil en horizontal para jugar más cómodo</p>
 <p class="help">Clic, toque o <b>Espacio</b> para lanzar cuando la flecha esté en la zona verde. Centro exacto = tiro limpio (+50%). Mete todos los balones del carro y se recarga al instante.</p>
 <footer>
+  <p id="plays" class="plays"></p>
   <p>Hecho con código y ❤️ por <a href="https://darioriverosp.netlify.app/" target="_blank" rel="noopener">Gonzalo Dario Riveros Plaza</a></p>
-  <nav><a href="3d.html">Jugar en 3D</a> · <a href="https://wa.me/?text=%F0%9F%8F%80%20Juega%20CanastaMan%20conmigo%3A%20del%20barrio%20a%20la%20Liga%20de%20Leyendas.%20https%3A%2F%2Fcanastaman.netlify.app" target="_blank" rel="noopener">Compartir en WhatsApp</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></nav>
+  <p class="credits">💡 Idea original: <b>Angel Gomez</b> · 💻 Desarrollo: <b>Gonzalo Dario Riveros Plaza</b></p>
+  <nav class="social" aria-label="Redes de Gonzalo Dario Riveros Plaza">
+    <a href="https://www.instagram.com/darioriverosp" target="_blank" rel="noopener" title="Instagram"><i style="--icon:url(icons/instagram.svg)"></i></a>
+    <a href="https://www.tiktok.com/@darioriverosp" target="_blank" rel="noopener" title="TikTok"><i style="--icon:url(icons/tiktok.svg)"></i></a>
+    <a href="https://x.com/darioriverosp" target="_blank" rel="noopener" title="X"><i style="--icon:url(icons/x.svg)"></i></a>
+    <a href="https://www.facebook.com/darioriverosp" target="_blank" rel="noopener" title="Facebook"><i style="--icon:url(icons/facebook.svg)"></i></a>
+    <a href="https://www.youtube.com/@darioriverosp" target="_blank" rel="noopener" title="YouTube"><i style="--icon:url(icons/youtube.svg)"></i></a>
+    <a href="https://www.linkedin.com/in/darioriverosp" target="_blank" rel="noopener" title="LinkedIn"><i style="--icon:url(icons/linkedin.svg)"></i></a>
+    <a href="https://github.com/darioriverosp" target="_blank" rel="noopener" title="GitHub"><i style="--icon:url(icons/github.svg)"></i></a>
+  </nav>
+  <nav><a href="#opinion" id="fbOpen">💬 ¿Ideas o errores? Escríbeme</a> · <a href="3d.html">Jugar en 3D</a> · <a href="https://wa.me/?text=%F0%9F%8F%80%20Juega%20CanastaMan%20conmigo%3A%20del%20barrio%20a%20la%20Liga%20de%20Leyendas.%20https%3A%2F%2Fcanastaman.netlify.app" target="_blank" rel="noopener">Compartir en WhatsApp</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></nav>
   <p class="fine">© 2026 CanastaMan · Versión beta · Gratis y sin anuncios</p>
 </footer>
+
+<!-- Formulario de opiniones: lo recoge Netlify Forms (se ve en el panel de Netlify → Forms) -->
+<dialog id="fb">
+  <form name="opiniones" method="POST" data-netlify="true" netlify-honeypot="bot-field" id="fbForm">
+    <input type="hidden" name="form-name" value="opiniones">
+    <input type="hidden" name="partida" id="fbGame">
+    <p hidden><label>No rellenar: <input name="bot-field"></label></p>
+    <h3>💬 ¿Ideas o errores?</h3>
+    <p class="help">Cuéntame qué mejorarías, qué falla o qué te gustaría ver en CanastaMan.</p>
+    <label class="field">Tu nombre (opcional)<input name="nombre" id="fbName" maxlength="40" autocomplete="off"></label>
+    <label class="field">Tipo<select name="tipo"><option>💡 Idea</option><option>🐞 Error</option><option>💬 Otro</option></select></label>
+    <label class="field">Mensaje<textarea name="mensaje" required maxlength="2000" rows="4" placeholder="Escribe aquí…"></textarea></label>
+    <p id="fbMsg" class="help" role="status"></p>
+    <div class="row"><button type="button" class="btn ghost" id="fbClose">Cerrar</button><button class="btn" id="fbSend">Enviar</button></div>
+  </form>
+</dialog>
 
 <script>
 const cv = document.getElementById('c'), cx = cv.getContext('2d');
@@ -532,6 +571,40 @@ function shareLink() {
   return 'https://wa.me/?text=' + encodeURIComponent(`${msg} ${SITE}`);
 }
 
+// ---------- ¿Ideas o errores? (Netlify Forms) ----------
+const fb = document.getElementById('fb'), fbForm = document.getElementById('fbForm'), fbMsg = document.getElementById('fbMsg');
+function openFeedback(e) {
+  e?.preventDefault();
+  if (mode === 'play') return;
+  fbMsg.textContent = ''; document.getElementById('fbSend').disabled = false;
+  if (S.char && !document.getElementById('fbName').value) document.getElementById('fbName').value = S.char.name;
+  document.getElementById('fbGame').value = `Día ${S.day} · ${stage().name} · ${innerWidth}x${innerHeight} · ${navigator.userAgent.slice(0, 120)}`;
+  fb.showModal();
+}
+document.getElementById('fbOpen').onclick = openFeedback;
+document.getElementById('fbClose').onclick = () => fb.close();
+fbForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const send = document.getElementById('fbSend'); send.disabled = true; fbMsg.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(new FormData(fbForm)).toString() });
+    if (!r.ok) throw 0;
+    fbForm.querySelector('textarea').value = '';
+    fbMsg.textContent = '✅ ¡Gracias! Tu mensaje llegó.';
+    setTimeout(() => fb.close(), 1600);
+  } catch (err) { fbMsg.textContent = '❌ No se pudo enviar. Revisa la conexión e inténtalo otra vez.'; send.disabled = false; }
+});
+
+// ---------- Contador de partidas (mismo servidor del ranking) ----------
+function showPlays(st) {
+  if (!st || !st.plays) return;
+  document.getElementById('plays').textContent = `🏀 ${st.plays.toLocaleString('es')} días jugados por ${st.players.toLocaleString('es')} ${st.players === 1 ? 'jugador' : 'jugadores'}`;
+}
+function countPlay() {
+  return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: S.pid, kind: 'play' }) })
+    .then(r => r.ok ? r.json() : null).then(showPlays).catch(() => {});
+}
+
 // ---------- Ranking online (función de Netlify en /api/ranking) ----------
 const API = '/api/ranking';
 let rankPost = null, rankTab = 'day', RANK = null;
@@ -540,7 +613,7 @@ function sendScore(kind, value) {
     body: JSON.stringify({ id: S.pid, name: S.char.name, team: stage().team, kind, value: Math.floor(value) }) }).catch(() => {});
 }
 async function loadRanking() {
-  try { await rankPost; const r = await fetch(`${API}?id=${S.pid}`); if (!r.ok) throw 0; RANK = await r.json(); }
+  try { await rankPost; const r = await fetch(`${API}?id=${S.pid}`); if (!r.ok) throw 0; RANK = await r.json(); showPlays(RANK.stats); }
   catch (e) { RANK = null; }
   drawRanking();
 }
@@ -568,7 +641,8 @@ function endDay() {
   if (win) S.wins++; else if (!tie) S.losses++;
   lastStats.match = { win, tie, text: win ? `🏆 Ganaste ${R.my}–${R.rival} a ${rival}` : tie ? `🤝 Empate ${R.my}–${R.rival} con ${rival}` : `❌ Perdiste ${R.my}–${R.rival} contra ${rival}`,
     sub: win ? `Bono de victoria: +${fmt(bonus)} pts` : 'Gana el partido para llevarte un bono del 50%' };
-  if (R.earned > S.best && R.earned > 0) rankPost = sendScore('day', R.earned);
+  const played = countPlay();
+  rankPost = R.earned > S.best && R.earned > 0 ? played.then(() => sendScore('day', R.earned)) : played;
   S.day++; S.best = Math.max(S.best, R.earned); save();
   const goal = goalNow();
   if (goal && R.earned >= goal) isFinal() ? renderChampion() : renderOffer(); else renderShop();
@@ -683,11 +757,12 @@ function renderShop() {
 // Durante el día, tocar en cualquier parte de la pantalla lanza (en móvil el canvas es pequeño)
 addEventListener('pointerdown', e => { if (mode === 'play') { e.preventDefault(); shoot(); } });
 addEventListener('keydown', e => {
-  if (e.code !== 'Space' || e.target.tagName === 'INPUT' || mode === 'create' || mode === 'offer') return;
+  if (e.code !== 'Space' || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target.tagName) || fb.open || mode === 'create' || mode === 'offer') return;
   e.preventDefault(); if (mode === 'play') shoot(); else if (!e.repeat) startDay();
 });
 
-if (S.char) renderShop(); else renderCreate();
+if (S.char) renderShop(); else { renderCreate(); fetch(API).then(r => r.ok ? r.json() : null).then(d => showPlays(d?.stats)).catch(() => {}); }
+if (location.hash === '#opinion') openFeedback();
 requestAnimationFrame(loop);
 window.__game = { get R() { return R; }, get S() { return S; }, startDay, endDay };
 </script>

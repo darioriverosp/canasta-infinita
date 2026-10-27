@@ -1,6 +1,6 @@
 // Ranking online de CanastaMan: guarda las mejores puntuaciones en Netlify Blobs.
 // GET  /api/ranking?id=...  -> top 10 de cada tabla (marca con "me" las entradas de ese jugador)
-// POST /api/ranking         -> { id, name, team, kind: 'day' | 'champ', value }
+// POST /api/ranking         -> { id, name, team, kind: 'day' | 'champ', value }  o  { id, kind: 'play' } para el contador
 import { getStore } from '@netlify/blobs';
 
 const BOARDS = {
@@ -8,8 +8,11 @@ const BOARDS = {
   champ: { better: (a, b) => a < b, max: 100000 }, // menos días para ser campeón
 };
 const clean = s => String(s ?? '').replace(/[<>&"'`]/g, '').trim().slice(0, 12) || 'Jugador';
-const top = (data, id) => Object.fromEntries(Object.keys(BOARDS).map(k =>
-  [k, (data[k] || []).slice(0, 10).map(e => ({ name: e.name, team: e.team, value: e.value, me: e.id === id }))]));
+const top = (data, id) => ({
+  ...Object.fromEntries(Object.keys(BOARDS).map(k =>
+    [k, (data[k] || []).slice(0, 10).map(e => ({ name: e.name, team: e.team, value: e.value, me: e.id === id }))])),
+  stats: data.stats || { plays: 0, players: 0 },
+});
 
 export default async (req) => {
   const store = getStore('ranking');
@@ -21,6 +24,16 @@ export default async (req) => {
   let body;
   try { body = await req.json(); } catch { return new Response('JSON inválido', { status: 400 }); }
   const { id, name, team, kind, value } = body || {};
+
+  // contador de días jugados y jugadores distintos
+  if (kind === 'play') {
+    if (typeof id !== 'string' || !/^[a-z0-9]{6,32}$/.test(id)) return new Response('Datos inválidos', { status: 400 });
+    const stats = data.stats || (data.stats = { plays: 0, players: 0 });
+    stats.plays++;
+    if (!(await store.get(`jugador/${id}`))) { stats.players++; await store.set(`jugador/${id}`, '1'); }
+    await store.setJSON('tablas', data);
+    return Response.json(stats);
+  }
   const board = BOARDS[kind];
   if (!board || typeof id !== 'string' || !/^[a-z0-9]{6,32}$/.test(id) || !Number.isFinite(value) || value <= 0 || value > board.max)
     return new Response('Datos inválidos', { status: 400 });
