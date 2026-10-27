@@ -29,6 +29,13 @@ El balance está calculado con un simulador: un jugador normal llega a Leyendas 
 
 Las ligas están en la tabla `STAGES` del código.
 
+## Más cosas del juego (versión 2D)
+
+- **Racha en llamas 🔥:** con 10 canastas seguidas te enciendes y todo vale x2 hasta que falles (`FIRE_AT`).
+- **Partido contra un rival:** cada día juegas contra un equipo (Los del Parque, Lobos, Panteras, Dragones, Titanes Dorados). El marcador va arriba: cada canasta vale 2, o 3 desde la línea de triple. El rival anota a un ritmo calculado según tus mejoras (`RIVAL_LEVEL`). Si ganas, te llevas un bono del 50% de lo ganado ese día.
+- **Ranking online:** "Mejor día" y "Campeón más rápido". Lo guarda una función de Netlify (`netlify/functions/ranking.mjs`) en Netlify Blobs y se consulta en `/api/ranking`.
+- **Compartir por WhatsApp:** botón que manda tu récord con el enlace. El enlace muestra una vista previa con imagen (`og-image.png`) gracias a las etiquetas Open Graph.
+
 ## Cómo se juega (3D)
 
 - **Desliza el dedo hacia arriba** (o arrastra con el ratón) para lanzar. Cuanto más largo el gesto, más fuerza: deslizar un 28% de la pantalla es la fuerza ideal. Si lo deslizas torcido, el tiro sale torcido.
@@ -120,7 +127,12 @@ y abrir http://localhost:5180
 
 ## Publicación
 
-El sitio es estático, así que Netlify lo sirve tal cual (`netlify.toml` publica la carpeta raíz, sin paso de build).
+La web es estática y Netlify la sirve tal cual (`netlify.toml` publica la carpeta raíz). El ranking es una función de Netlify; para subir todo:
+
+```bash
+npm install
+npx netlify-cli deploy --prod --dir=. --functions=netlify/functions
+```
 
 ---
 
