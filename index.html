@@ -84,7 +84,12 @@
   ol.rank b { font-variant-numeric:tabular-nums; }
   .share { background:#25d366; color:#08260f; }
   #rotate { display:none; color:var(--gold); font-size:13px; margin:8px 0 0; text-align:center; }
-  footer { margin-top:auto; padding-top:16px; font-size:13px; color:var(--muted); text-align:center; }
+  footer { margin-top:auto; padding-top:20px; font-size:13px; color:var(--muted); text-align:center; display:flex; flex-direction:column; gap:6px; }
+  footer p { margin:0; }
+  footer a { color:var(--text); text-decoration:none; border-bottom:1px solid rgba(255,138,42,.5); }
+  footer a:hover { color:var(--accent); }
+  footer nav { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  footer .fine { font-size:11px; opacity:.75; }
   /* Móvil: la tienda va debajo del juego en vez de encima, para que tenga espacio */
   @media (max-width:700px) {
     body { padding:8px 12px; }
@@ -114,7 +119,11 @@
 </div>
 <p id="rotate">📱 Gira el móvil en horizontal para jugar más cómodo</p>
 <p class="help">Clic, toque o <b>Espacio</b> para lanzar cuando la flecha esté en la zona verde. Centro exacto = tiro limpio (+50%). Mete todos los balones del carro y se recarga al instante.</p>
-<footer>Hecho con ❤️ por Gonzalo Dario Riveros Plaza</footer>
+<footer>
+  <p>Hecho con código y ❤️ por <a href="https://darioriverosp.netlify.app/" target="_blank" rel="noopener">Gonzalo Dario Riveros Plaza</a></p>
+  <nav><a href="3d.html">Jugar en 3D</a> · <a href="https://wa.me/?text=%F0%9F%8F%80%20Juega%20CanastaMan%20conmigo%3A%20del%20barrio%20a%20la%20Liga%20de%20Leyendas.%20https%3A%2F%2Fcanastaman.netlify.app" target="_blank" rel="noopener">Compartir en WhatsApp</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></nav>
+  <p class="fine">© 2026 CanastaMan · Versión beta · Gratis y sin anuncios</p>
+</footer>
 
 <script>
 const cv = document.getElementById('c'), cx = cv.getContext('2d');

@@ -103,7 +103,9 @@
   .offer .emoji { font-size:52px; }
   .offer p { font-size:17px; line-height:1.5; max-width:520px; margin:10px auto 18px; }
   .offer .row { justify-content:center; }
-  .credit { margin:16px 0 0; padding-top:12px; border-top:1px solid var(--line); text-align:center; font-size:13px; color:var(--muted); }
+  .credit { margin:16px 0 0; padding-top:12px; border-top:1px solid var(--line); text-align:center; font-size:13px; color:var(--muted); line-height:1.8; }
+  .credit a { color:var(--text); text-decoration:none; border-bottom:1px solid rgba(255,138,42,.5); }
+  .credit a:hover { color:var(--accent); }
   @media (max-width:600px) {
     .shop { grid-template-columns:1fr 1fr; }
     .up { padding:8px; } .up .d { font-size:11px; }
@@ -776,7 +778,7 @@ function renderCreate() {
     <label class="field">Número de camiseta<input id="cNum" type="number" min="0" max="99" inputmode="numeric" value="${c.num}"></label>
     <div class="field">Tono de piel<div class="swatches">${SKINS.map(s => `<button type="button" data-skin="${s}" class="${s === c.skin ? 'on' : ''}" style="background:${s}" aria-label="Tono de piel"></button>`).join('')}</div></div>
     <div class="row"><span></span><button class="btn" id="cGo">Empezar carrera ▶</button></div>
-    <p class="credit">Hecho con ❤️ por Gonzalo Dario Riveros Plaza</p>`;
+    <p class="credit">Hecho con código y ❤️ por <a href="https://darioriverosp.netlify.app/" target="_blank" rel="noopener">Gonzalo Dario Riveros Plaza</a><br><a href="index.html">Jugar en 2D</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></p>`;
   let skin = c.skin;
   const preview = () => { S.char = { name: $('cName').value.replace(/[<>&"]/g, '').trim() || 'Jugador', num: Math.max(0, Math.min(99, parseInt($('cNum').value) || 0)), skin }; applyStage(); };
   card.querySelectorAll('[data-skin]').forEach(b => b.onclick = () => {
@@ -848,7 +850,7 @@ function renderShop() {
     <div class="row"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
     <div class="row foot"><span>Total histórico: ${fmt(S.total)} · <a href="index.html">versión 2D</a></span><button class="btn ghost" id="reset">Borrar partida</button></div>
-    <p class="credit">Hecho con ❤️ por Gonzalo Dario Riveros Plaza</p>`;
+    <p class="credit">Hecho con código y ❤️ por <a href="https://darioriverosp.netlify.app/" target="_blank" rel="noopener">Gonzalo Dario Riveros Plaza</a><br><a href="index.html">Jugar en 2D</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></p>`;
   card.querySelectorAll('.up').forEach(b => b.onclick = () => {
     const u = UPS.find(x => x.id === b.dataset.id), c = cost(u, S.lv[u.id]);
     if (S.points >= c && S.lv[u.id] < u.max) { S.points -= c; S.lv[u.id]++; save(); beep(760, 0.08); renderShop(); }
