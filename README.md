@@ -2,7 +2,7 @@
 
 Juego **incremental** de baloncesto: cada "día" tienes 30 segundos para encestar, ganas puntos y al final del día los gastas en mejoras para que el día siguiente rinda más.
 
-- **Jugar online:** https://canasta-infinita.netlify.app
+- **Jugar online:** https://canastaman.netlify.app
 - `index.html`: versión **3D** (la principal).
 - `clasico.html`: la primera versión **2D**, con el medidor de pulsar a tiempo.
 

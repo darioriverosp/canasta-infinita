@@ -65,6 +65,12 @@
   .btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-size:12px; padding:8px 12px; font-weight:600; }
   .foot { margin-top:14px; font-size:13px; color:var(--muted); }
   .foot a { color:var(--muted); }
+  .logo { font-weight:900; font-style:italic; letter-spacing:-.5px; white-space:nowrap; }
+  .logo .c { color:var(--accent); } .logo .m { color:#fff; }
+  .logo::before { content:"🏀"; font-style:normal; margin-right:6px; }
+  #hudLogo { position:absolute; left:50%; top:max(12px, env(safe-area-inset-top)); transform:translateX(-50%); font-size:22px; text-shadow:0 2px 8px rgba(0,0,0,.7); }
+  @media (max-width:640px) { #hudLogo { top:auto; bottom:calc(max(22px, env(safe-area-inset-bottom)) + 30px); font-size:18px; opacity:.9; } }
+  h2.logo { font-size:30px; }
   #goal { margin-top:6px; font-size:14px; }
   #goal.done { color:var(--good); }
   .career { display:flex; gap:12px; align-items:center; background:var(--card); border-radius:10px; padding:10px 12px; margin:10px 0; }
@@ -109,6 +115,7 @@
     <div class="small" id="per">1 por canasta</div>
     <div class="small" id="goal"></div>
   </div>
+  <div class="logo" id="hudLogo"><span class="c">Canasta</span><span class="m">Man</span></div>
   <div id="power"><div class="zone"></div><div class="fill"></div><div class="mark"></div></div>
   <div id="hint">Desliza hacia el aro para lanzar 👆</div>
 </div>
@@ -743,7 +750,7 @@ function renderCreate() {
   mode = 'create'; $('hud').classList.add('hidden');
   const c = S.char || { name: '', num: 7, skin: SKINS[1] };
   card.innerHTML = `
-    <h2>🏀 CanastaMan</h2>
+    <h2 class="logo"><span class="c">Canasta</span><span class="m">Man</span></h2>
     <p class="help">Empiezas desde cero en la cancha del barrio. Haz puntos, mejora y que te vean los cazatalentos: secundaria, universidad, profesional… hasta las Leyendas.</p>
     <label class="field">Nombre<input id="cName" maxlength="12" placeholder="Tu nombre" value="${c.name}" autocomplete="off"></label>
     <label class="field">Número de camiseta<input id="cNum" type="number" min="0" max="99" inputmode="numeric" value="${c.num}"></label>
@@ -794,7 +801,7 @@ function renderShop() {
       <div class="c">${maxed ? 'MÁXIMO' : fmt(c) + ' pts'}</div></button>`;
   }).join('');
   card.innerHTML = `
-    <h2>${lastStats ? lastStats.title : '🏀 CanastaMan'}</h2>
+    ${lastStats ? `<h2>${lastStats.title}</h2>` : '<h2 class="logo"><span class="c">Canasta</span><span class="m">Man</span></h2>'}
     ${lastStats ? `<div class="stats">${lastStats.items.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('')}</div>`
       : `<p class="help"><b>Desliza el dedo (o arrastra con el ratón) hacia arriba</b> para lanzar: cuanto más largo el gesto, más fuerza. Intenta soltar con la barra en la zona verde. En PC también puedes mantener <b>Espacio</b> y soltar.<br>
          Canasta limpia +50%, de tablero +25%. Si metes todo el carro, se recarga gratis.</p>`}
