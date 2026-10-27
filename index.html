@@ -544,12 +544,12 @@ function hud() {
   else if (R.streak >= 3) txt(`Racha x${R.streak} (a ${FIRE_AT} te enciendes 🔥)`, 20, 160, '800 15px system-ui', '#3ddc84');
   // marcador del partido
   const bx = W / 2, by = 104;
-  cx.fillStyle = 'rgba(10,12,16,.72)'; cx.fillRect(bx - 170, by, 340, 36);
-  cx.fillStyle = st.jersey; cx.fillRect(bx - 170, by, 6, 36);
-  cx.fillStyle = R.flash > 0 ? `rgba(255,92,92,${R.flash * .5})` : 'transparent'; cx.fillRect(bx + 10, by, 160, 36);
-  txt('TÚ', bx - 155, by + 25, '800 15px system-ui', '#fff');
-  txt(`${R.my}  –  ${R.rival}`, bx, by + 27, '900 22px system-ui', R.my >= R.rival ? '#3ddc84' : '#ff5c5c', 'center');
-  txt(RIVALS[S.stage].toUpperCase(), bx + 160, by + 25, '800 13px system-ui', '#ddd', 'right');
+  cx.fillStyle = 'rgba(10,12,16,.72)'; cx.fillRect(bx - 190, by, 380, 36);
+  cx.fillStyle = st.jersey; cx.fillRect(bx - 190, by, 6, 36);
+  cx.fillStyle = R.flash > 0 ? `rgba(255,92,92,${R.flash * .5})` : 'transparent'; cx.fillRect(bx + 15, by, 175, 36);
+  txt('TÚ', bx - 175, by + 25, '800 15px system-ui', '#fff');
+  txt(`${R.my} – ${R.rival}`, bx - 50, by + 27, '900 22px system-ui', R.my >= R.rival ? '#3ddc84' : '#ff5c5c', 'center');
+  txt(RIVALS[S.stage].toUpperCase(), bx + 180, by + 24, '800 12px system-ui', '#ddd', 'right');
 }
 
 // ---------- Pantallas ----------
@@ -561,6 +561,9 @@ let lastStats = null;
 
 // ---------- Compartir por WhatsApp ----------
 const SITE = 'https://canastaman.netlify.app';
+// En Netlify (o en local) el servidor está en la misma web; desde itch.io hay que llamar a Netlify directamente
+const ON_SITE = location.hostname.endsWith('netlify.app') || ['localhost', '127.0.0.1'].includes(location.hostname);
+const SERVER = ON_SITE ? '' : SITE;
 function shareLink() {
   const msg = S.champion ? `🏆 Fui campeón de CanastaMan en ${S.champion} días. ¿Me ganas?`
     : S.best ? `🏀 Hice ${fmt(S.best)} pts en un día jugando CanastaMan con los ${stage().team}. ¿Me superas?`
@@ -584,8 +587,10 @@ fbForm.addEventListener('submit', async e => {
   e.preventDefault();
   const send = document.getElementById('fbSend'); send.disabled = true; fbMsg.textContent = 'Enviando…';
   try {
-    const r = await fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(new FormData(fbForm)).toString() });
-    if (!r.ok) throw 0;
+    const body = new URLSearchParams(new FormData(fbForm)).toString();
+    // desde otra web (itch.io) el navegador no deja leer la respuesta, pero el mensaje llega igual
+    const r = await fetch(SERVER + '/', { method: 'POST', mode: ON_SITE ? 'cors' : 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    if (ON_SITE && !r.ok) throw 0;
     fbForm.querySelector('textarea').value = '';
     fbMsg.textContent = '✅ ¡Gracias! Tu mensaje llegó.';
     setTimeout(() => fb.close(), 1600);
@@ -603,7 +608,7 @@ function countPlay() {
 }
 
 // ---------- Ranking online (función de Netlify en /api/ranking) ----------
-const API = '/api/ranking';
+const API = SERVER + '/api/ranking';
 let rankPost = null, rankTab = 'day', RANK = null;
 function sendScore(kind, value) {
   return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' },

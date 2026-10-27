@@ -14,7 +14,17 @@ const top = (data, id) => ({
   stats: data.stats || { plays: 0, players: 0 },
 });
 
+// Se puede llamar desde otras webs (por ejemplo, el juego subido a itch.io)
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+
 export default async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  const res = await handle(req);
+  for (const [k, v] of Object.entries(CORS)) res.headers.set(k, v);
+  return res;
+};
+
+async function handle(req) {
   const store = getStore('ranking');
   const data = (await store.get('tablas', { type: 'json' })) || { day: [], champ: [] };
 
@@ -48,6 +58,6 @@ export default async (req) => {
   data[kind] = list.slice(0, 100);
   await store.setJSON('tablas', data);
   return Response.json(top(data, id));
-};
+}
 
 export const config = { path: '/api/ranking' };
