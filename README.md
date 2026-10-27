@@ -17,11 +17,15 @@ Las dos tienen el mismo modo carrera, días de 30 s y los mismos precios.
 
 | Liga | Equipo | Canasta vale | Objetivo para subir |
 |---|---|---|---|
-| Cancha del barrio | Barrio | x1 | 25 pts en un día |
-| Liga de Secundaria | Halcones | x3 | 400 |
-| Liga Universitaria | Toros | x10 | 6.000 |
-| Liga Profesional | Titanes | x30 | 120.000 |
-| Liga de Leyendas | Leyendas | x100 | — |
+| Cancha del barrio | Barrio | x1 | 40 pts en un día |
+| Liga de Secundaria | Halcones | x2 | 1.000 |
+| Liga Universitaria | Toros | x3 | 25.000 |
+| Liga Profesional | Titanes | x5 | 700.000 |
+| Liga de Leyendas | Leyendas | x8 | 2.000.000 para ganar el campeonato 🏆 |
+
+Al ganar el campeonato sale la pantalla final con los días que tardaste, y puedes seguir jugando.
+
+El balance está calculado con un simulador: un jugador normal llega a Leyendas hacia el día 17–24 y gana el campeonato hacia el día 25–35.
 
 Las ligas están en la tabla `STAGES` del código.
 
@@ -80,7 +84,7 @@ Todo el balance está en tablas al principio del script, para ajustarlo sin toca
 
 El día dura 30 s (`DAY_BASE`) y la mejora Día más largo suma 5 s por nivel (`DAY_STEP`).
 
-Mejoras: Puntería, Distancia, Más balones, Recarga rápida, Puntos x2, Doble tiro, Suerte (balón dorado x5), Compañero y Día más largo.
+Mejoras: Puntería, Distancia, Más balones, Recarga rápida, Multiplicador (x1 a x21), Doble tiro, Suerte (balón dorado x5), Compañero y Día más largo.
 
 ### Cómo salen los sonidos
 

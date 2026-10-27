@@ -144,37 +144,40 @@ const DIST = [
 ];
 const DAY_BASE = 30, DAY_STEP = 5;                         // el día dura 30 s (+5 s por mejora)
 const UPS = [
-  { id: 'aim',    name: 'Puntería',       base: 8,   g: 1.9,  max: 10, desc: l => `Zona verde más ancha y guía de tiro más larga (nivel ${l})` },
-  { id: 'dist',   name: 'Distancia',      base: 12,  g: 3.4,  max: 5,  desc: l => `Tiras desde ${DIST[l].label} (${DIST[l].d} m): ${DIST[l].pts} pts por canasta` },
-  { id: 'rack',   name: 'Más balones',    base: 6,   g: 1.75, max: 6,  desc: l => `${6 + l} balones por carro` },
-  { id: 'reload', name: 'Recarga rápida', base: 8,   g: 1.8,  max: 10, desc: l => `Recargar tarda ${reloadTime(l).toFixed(2)} s` },
-  { id: 'mult',   name: 'Puntos x2',      base: 50,  g: 4.5,  max: 8,  desc: l => `Multiplicador de canasta x${2 ** l}` },
-  { id: 'multi',  name: 'Doble tiro',     base: 80,  g: 6,    max: 3,  desc: l => `Lanzas ${1 + l} balones a la vez` },
-  { id: 'luck',   name: 'Suerte',         base: 15,  g: 2.1,  max: 10, desc: l => `${luckChance(l)}% de balón dorado (x5)` },
-  { id: 'mate',   name: 'Compañero',      base: 100, g: 2.4,  max: 10, desc: l => `Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l) * 100)}% acierto)` },
-  { id: 'time',   name: 'Día más largo',  base: 30,  g: 2.6,  max: 4,  desc: l => `El día dura ${DAY_BASE + l * DAY_STEP} s` },
+  { id: 'aim',    name: 'Puntería',       base: 10,   g: 2.6,  max: 10, desc: l => `Zona verde más ancha y guía de tiro más larga (nivel ${l})` },
+  { id: 'dist',   name: 'Distancia',      base: 30,  g: 7,  max: 5,  desc: l => `Tiras desde ${DIST[l].label} (${DIST[l].d} m): ${DIST[l].pts} pts por canasta` },
+  { id: 'rack',   name: 'Más balones',    base: 12,   g: 3, max: 6,  desc: l => `${6 + l} balones por carro` },
+  { id: 'reload', name: 'Recarga rápida', base: 12,   g: 2.7,  max: 10, desc: l => `Recargar tarda ${reloadTime(l).toFixed(2)} s` },
+  { id: 'mult',   name: 'Multiplicador',  base: 80,  g: 2.25,  max: 20,  desc: l => `Cada canasta vale x${1 + l}` },
+  { id: 'multi',  name: 'Doble tiro',     base: 600,  g: 15,    max: 3,  desc: l => `Lanzas ${1 + l} balones a la vez` },
+  { id: 'luck',   name: 'Suerte',         base: 40,  g: 3,  max: 10, desc: l => `${luckChance(l)}% de balón dorado (x5)` },
+  { id: 'mate',   name: 'Compañero',      base: 300, g: 3.3,  max: 10, desc: l => `Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l) * 100)}% acierto)` },
+  { id: 'time',   name: 'Día más largo',  base: 100,  g: 6,  max: 4,  desc: l => `El día dura ${DAY_BASE + l * DAY_STEP} s` },
 ];
 
 // ================= Carrera: cada liga tiene su camiseta, su pista y su objetivo =================
 // goal = puntos que hay que hacer en un solo día para que te vea un cazatalentos de la siguiente liga
 const STAGES = [
-  { name: 'Cancha del barrio',  team: 'Barrio',    jersey: '#ff8a2a', court: '#2f6f9f', key: '#d9692b', mult: 1,   goal: 25,
+  { name: 'Cancha del barrio',  team: 'Barrio',    jersey: '#ff8a2a', court: '#2f6f9f', key: '#d9692b', mult: 1,   goal: 40,
     sky: ['#1d2550', '#6b3f7a', '#e0716a', '#ffb36b'], fog: '#7a4a78' },
-  { name: 'Liga de Secundaria', team: 'Halcones',  jersey: '#2e9d5b', court: '#c08a55', key: '#2e9d5b', mult: 3,   goal: 400,
+  { name: 'Liga de Secundaria', team: 'Halcones',  jersey: '#2e9d5b', court: '#c08a55', key: '#2e9d5b', mult: 2,   goal: 1000,
     sky: ['#2f6fc4', '#6fa8e6', '#b9dcf5', '#f3e6c6'], fog: '#9cc3e6',
     offer: 'Un cazatalentos de la <b>Liga de Secundaria</b> te estaba viendo jugar. Quiere que te unas a los <b>Halcones</b>.' },
-  { name: 'Liga Universitaria', team: 'Toros',     jersey: '#c8323c', court: '#b47a48', key: '#c8323c', mult: 10,  goal: 6000,
+  { name: 'Liga Universitaria', team: 'Toros',     jersey: '#c8323c', court: '#b47a48', key: '#c8323c', mult: 3,   goal: 25000,
     sky: ['#070b1e', '#141c3d', '#2a2f5c', '#4a3d6b'], fog: '#1b2040',
     offer: 'Un ojeador de la universidad vio tus partidos. Te ofrecen una <b>beca</b> para jugar con los <b>Toros</b>.' },
-  { name: 'Liga Profesional',   team: 'Titanes',   jersey: '#6b3fc9', court: '#a8703f', key: '#6b3fc9', mult: 30,  goal: 120000,
+  { name: 'Liga Profesional',   team: 'Titanes',   jersey: '#6b3fc9', court: '#a8703f', key: '#6b3fc9', mult: 5,   goal: 700000,
     sky: ['#0b0820', '#2b1450', '#7a2e6e', '#e05a5a'], fog: '#2b1450',
     offer: '¡Te llegó una oferta profesional! Los <b>Titanes</b> quieren ficharte.' },
-  { name: 'Liga de Leyendas',   team: 'Leyendas',  jersey: '#1b1b1b', court: '#2c2c34', key: '#c9a227', mult: 100, goal: null,
+  { name: 'Liga de Leyendas',   team: 'Leyendas',  jersey: '#1b1b1b', court: '#2c2c34', key: '#c9a227', mult: 8,   goal: 2000000,
     sky: ['#000008', '#101030', '#302050', '#c98a3a'], fog: '#151530',
     offer: 'Eres la estrella de la liga. Te llaman para jugar con las <b>Leyendas</b>, lo más alto del baloncesto.' },
 ];
 const SKINS = ['#f1c9a5', '#d9a47c', '#b07850', '#7a4e30', '#4e3020'];
 const stage = () => STAGES[S.stage];
+const isFinal = () => S.stage === STAGES.length - 1;
+const goalNow = () => isFinal() && S.champion ? null : stage().goal;   // en Leyendas el objetivo es ganar el campeonato
+const goalWhat = () => isFinal() ? 'para ganar el campeonato 🏆' : 'para que te vea un cazatalentos';
 const reloadTime = l => 2.2 * Math.pow(0.84, l);
 const luckChance = l => l ? 3 + l * 3 : 0;
 const mateEvery  = l => Math.max(0.8, 3.6 - l * 0.28);
@@ -185,10 +188,10 @@ const guideFrac  = l => Math.min(0.85, 0.3 + l * 0.055);   // qué parte de la t
 const cost = (u, l) => Math.ceil(u.base * Math.pow(u.g, l));
 
 // ================= Guardado =================
-const FRESH = () => ({ points: 0, day: 1, total: 0, stage: 0, best: 0, char: null, lv: Object.fromEntries(UPS.map(u => [u.id, 0])) });
+const FRESH = () => ({ points: 0, day: 1, total: 0, stage: 0, best: 0, char: null, champion: 0, lv: Object.fromEntries(UPS.map(u => [u.id, 0])) });
 let S = FRESH();
-try { const raw = localStorage.getItem('canastaman-save'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch (e) {}
-const save = () => { try { localStorage.setItem('canastaman-save', JSON.stringify(S)); } catch (e) {} };
+try { const raw = localStorage.getItem('canastaman3d-v2'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch (e) {}
+const save = () => { try { localStorage.setItem('canastaman3d-v2', JSON.stringify(S)); } catch (e) {} };
 
 function fmt(n) {
   n = Math.floor(n);
@@ -504,12 +507,12 @@ function startDay() {
   mode = 'play'; $('overlay').classList.add('hidden'); $('hud').classList.remove('hidden');
   updatePts();
 }
-const perBasket = () => DIST[S.lv.dist].pts * 2 ** S.lv.mult * stage().mult;
+const perBasket = () => DIST[S.lv.dist].pts * (1 + S.lv.mult) * stage().mult;
 function updatePts() {
   $('pts').textContent = `${fmt(S.points)} pts`;
-  const goal = stage().goal, el = $('goal');
-  if (!goal) { el.textContent = '👑 Eres una leyenda'; return; }
-  el.textContent = R.earned >= goal ? '👀 ¡Un cazatalentos te está mirando!' : `🎯 Hoy: ${fmt(R.earned)} / ${fmt(goal)} pts`;
+  const goal = goalNow(), el = $('goal');
+  if (!goal) { el.textContent = '👑 Campeón de Leyendas'; return; }
+  el.textContent = R.earned >= goal ? (isFinal() ? '🏆 ¡Campeonato ganado!' : '👀 ¡Un cazatalentos te está mirando!') : `${isFinal() ? '🏆' : '🎯'} Hoy: ${fmt(R.earned)} / ${fmt(goal)} pts`;
   el.classList.toggle('done', R.earned >= goal);
 }
 function drawRack() {
@@ -589,6 +592,8 @@ function floatText(pos, text, color, size) {
   el.style.left = ((v3.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - v3.y) / 2 * innerHeight) + 'px';
   el.style.color = color; el.style.fontSize = size + 'px';
   document.body.appendChild(el); setTimeout(() => el.remove(), 1100);
+  const half = el.offsetWidth / 2, x = parseFloat(el.style.left);                 // que no se salga de la pantalla
+  el.style.left = Math.max(half + 10, Math.min(innerWidth - half - 10, x)) + 'px';
 }
 const partGeo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
 function burst(pos, gold) {
@@ -736,8 +741,8 @@ function endDay() {
     ['Puntos ganados', fmt(R.earned)], ['Canastas', `${R.makes} / ${R.shots}`], ['Acierto', pct + '%'], ['Limpias', R.swish],
     ['De tablero', R.banks], ['Mejor racha', R.best], ['Carros perfectos', R.perfectRacks], ['Del compañero', fmt(R.mateEarned)] ] };
   S.day++; S.best = Math.max(S.best, R.earned); save();
-  const goal = stage().goal;
-  if (goal && R.earned >= goal) renderOffer(); else renderShop();
+  const goal = goalNow();
+  if (goal && R.earned >= goal) isFinal() ? renderChampion() : renderOffer(); else renderShop();
 }
 
 const shirtHtml = (st, num) => {
@@ -764,6 +769,21 @@ function renderCreate() {
   });
   $('cName').oninput = preview; $('cNum').oninput = preview;
   $('cGo').onclick = () => { preview(); save(); beep(660, 0.08); renderShop(); };
+  $('overlay').classList.remove('hidden');
+}
+
+// Campeonato ganado: final del modo carrera (se puede seguir jugando)
+function renderChampion() {
+  mode = 'offer'; S.champion = S.day - 1; save(); $('hud').classList.add('hidden');
+  card.innerHTML = `<div class="offer">
+    <div class="emoji">🏆</div>
+    <h2>¡Campeón de la Liga de Leyendas!</h2>
+    <p>${S.char.name}, empezaste lanzando en la cancha del barrio y hoy eres <b>campeón</b>. Lo lograste en <b>${S.champion} ${S.champion === 1 ? "día" : "días"}</b>.</p>
+    <p style="font-size:14px;color:var(--muted);margin-top:0">Puedes seguir jugando para batir tu récord, o borrar la partida y hacerlo en menos días.</p>
+    <div class="row"><button class="btn" id="yes">Seguir jugando ▶</button></div>
+  </div>`;
+  [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18), i * 130));
+  $('yes').onclick = () => renderShop();
   $('overlay').classList.remove('hidden');
 }
 
@@ -807,8 +827,8 @@ function renderShop() {
          Canasta limpia +50%, de tablero +25%. Si metes todo el carro, se recarga gratis.</p>`}
     <div class="career">${shirtHtml(stage(), S.char.num)}<div style="flex:1;min-width:0">
       <b>${S.char.name} · ${stage().team}</b>
-      <span>${stage().name}${stage().goal ? ` · Objetivo: haz <b style="display:inline;font-size:13px;color:var(--text)">${fmt(stage().goal)} pts en un día</b> para que te vea un cazatalentos (récord: ${fmt(S.best)})` : ' · Has llegado a lo más alto'}</span>
-      ${stage().goal ? `<div class="bar"><i style="width:${Math.min(100, S.best / stage().goal * 100)}%"></i></div>` : ''}
+      <span>${stage().name}${goalNow() ? ` · Objetivo: haz <b style="display:inline;font-size:13px;color:var(--text)">${fmt(goalNow())} pts en un día</b> ${goalWhat()} (récord: ${fmt(S.best)})` : ` · 🏆 Campeón en ${S.champion} ${S.champion === 1 ? "día" : "días"}`}</span>
+      ${goalNow() ? `<div class="bar"><i style="width:${Math.min(100, S.best / goalNow() * 100)}%"></i></div>` : ''}
     </div></div>
     <div class="row"><span class="money">💰 ${fmt(S.points)} pts</span><button class="btn" id="go">Empezar día ${S.day} ▶</button></div>
     <div class="shop">${items}</div>
@@ -830,7 +850,7 @@ function renderShop() {
 applyStage();
 if (S.char) renderShop(); else renderCreate();
 requestAnimationFrame(loop);
-window.__game = { get R() { return R; }, get S() { return S; }, shoot, startDay, computeZone };
+window.__game = { get R() { return R; }, get S() { return S; }, shoot, startDay, endDay, computeZone };
 </script>
 <script>
   // Si el módulo 3D no carga (sin internet), avisar en vez de dejar la pantalla en negro
