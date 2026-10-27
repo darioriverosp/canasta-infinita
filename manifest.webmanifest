@@ -1,0 +1,14 @@
+{
+  "name": "CanastaMan",
+  "short_name": "CanastaMan",
+  "description": "Juego de baloncesto: del barrio a la Liga de Leyendas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14161c",
+  "theme_color": "#14161c",
+  "lang": "es",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
