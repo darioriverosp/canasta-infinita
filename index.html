@@ -96,6 +96,23 @@
   .btn:disabled { opacity:.4; cursor:not-allowed; }
   .gift { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:linear-gradient(90deg, rgba(255,210,63,.18), transparent); border:1px solid rgba(255,210,63,.45); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:14px; }
   .gift .btn { background:var(--gold); }
+  .wardrobe { background:var(--card); border-radius:10px; padding:10px 12px; margin:0 0 12px; }
+  .wardrobe summary { cursor:pointer; font-weight:800; font-size:16px; list-style:none; }
+  .wardrobe summary::-webkit-details-marker { display:none; }
+  .wardrobe summary::after { content:" ▾"; color:var(--muted); } .wardrobe[open] summary::after { content:" ▴"; }
+  .wardrobe summary small { color:var(--muted); font-weight:600; font-size:12px; margin-left:6px; }
+  .wgrid { display:grid; grid-template-columns:150px 1fr; gap:14px; margin-top:10px; align-items:start; }
+  #wardPrev { width:150px; height:190px; border-radius:8px; background:linear-gradient(#2b3350, #4a3d5c); position:sticky; top:8px; }
+  .slot h4 { margin:8px 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .slot:first-child h4 { margin-top:0; }
+  .items { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
+  .item { display:flex; flex-direction:column; gap:4px; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:8px; padding:8px; font-size:13px; }
+  .item.on { border-color:var(--accent); background:rgba(255,138,42,.1); }
+  .item.locked { opacity:.55; }
+  .item .ico { font-size:20px; line-height:1; border-left:4px solid var(--c); padding-left:6px; }
+  .item .lock { font-size:11px; color:var(--muted); }
+  .item .btn.mini { padding:5px 8px; font-size:12px; }
+  @media (max-width:520px) { .wgrid { grid-template-columns:1fr; } #wardPrev { position:static; margin:0 auto; } .items { grid-template-columns:1fr 1fr; } }
   #rotate { display:none; color:var(--gold); font-size:13px; margin:8px 0 0; text-align:center; }
   footer { margin-top:auto; padding-top:20px; font-size:13px; color:var(--muted); text-align:center; display:flex; flex-direction:column; gap:6px; }
   footer p { margin:0; }
@@ -175,7 +192,8 @@
 </dialog>
 
 <script>
-const cv = document.getElementById('c'), cx = cv.getContext('2d');
+const cv = document.getElementById('c');
+let cx = cv.getContext('2d');                                  // let: la vista previa del vestuario dibuja en otro canvas
 const W = 960, H = 540, FLOOR = 470, HOOP = { x: 862, y: 230 };
 
 // ---------- Mejoras (todo el balance está aquí) ----------
@@ -219,13 +237,41 @@ const STAGES = [
     offer:'Eres la estrella de la liga. Te llaman para jugar con las <b>Leyendas</b>, lo más alto del baloncesto.' },
 ];
 const SKINS = ['#f1c9a5', '#d9a47c', '#b07850', '#7a4e30', '#4e3020'];
+
+// ---------- Vestuario: accesorios que se compran con puntos (algunos piden llegar a una liga) ----------
+// slot: dónde va (solo uno por slot). stage: liga mínima para comprarlo. champ: solo para campeones.
+const SLOTS = { head: 'Cabeza', eyes: 'Gafas', wrist: 'Muñeca', arm: 'Brazo', neck: 'Cuello', socks: 'Calcetas', shoes: 'Zapatillas' };
+const ITEMS = [
+  { id: 'cinta-roja',   slot: 'head',  name: 'Cinta roja',            icon: '🎽', price: 40,     stage: 0, color: '#e23b3b' },
+  { id: 'cinta-equipo', slot: 'head',  name: 'Cinta del equipo',      icon: '🎽', price: 150,    stage: 1, color: 'team' },
+  { id: 'gorra',        slot: 'head',  name: 'Gorra al revés',        icon: '🧢', price: 300,    stage: 0, color: '#1b1f28' },
+  { id: 'afro',         slot: 'head',  name: 'Peinado afro',          icon: '💇', price: 500,    stage: 0, color: '#2a1a12' },
+  { id: 'cresta',       slot: 'head',  name: 'Cresta de colores',     icon: '🦜', price: 2500,   stage: 2, color: '#ff5c8a' },
+  { id: 'corona',       slot: 'head',  name: 'Corona de campeón',     icon: '👑', price: 0,      stage: 4, color: '#ffd23f', champ: true },
+  { id: 'gafas-sol',    slot: 'eyes',  name: 'Gafas de sol',          icon: '🕶️', price: 200,    stage: 0, color: '#111' },
+  { id: 'gafas-sport',  slot: 'eyes',  name: 'Gafas deportivas',      icon: '🥽', price: 1200,   stage: 1, color: '#4aa3ff' },
+  { id: 'muneca',       slot: 'wrist', name: 'Muñequera blanca',      icon: '🤍', price: 80,     stage: 0, color: '#f2f2f2' },
+  { id: 'muneca-equipo',slot: 'wrist', name: 'Muñequera del equipo',  icon: '💪', price: 400,    stage: 1, color: 'team' },
+  { id: 'muneca-oro',   slot: 'wrist', name: 'Muñequera de oro',      icon: '✨', price: 60000,  stage: 3, color: '#ffd23f' },
+  { id: 'manga',        slot: 'arm',   name: 'Manga de compresión',   icon: '🦾', price: 350,    stage: 0, color: '#1b1f28' },
+  { id: 'manga-blanca', slot: 'arm',   name: 'Manga blanca',          icon: '🦾', price: 900,    stage: 1, color: '#f2f2f2' },
+  { id: 'cadena',       slot: 'neck',  name: 'Cadena de oro',         icon: '📿', price: 8000,   stage: 2, color: '#ffd23f' },
+  { id: 'calcetas',     slot: 'socks', name: 'Calcetas altas',        icon: '🧦', price: 100,    stage: 0, color: '#f2f2f2' },
+  { id: 'calcetas-eq',  slot: 'socks', name: 'Calcetas del equipo',   icon: '🧦', price: 600,    stage: 1, color: 'team' },
+  { id: 'zap-rojas',    slot: 'shoes', name: 'Zapatillas rojas',      icon: '👟', price: 60,     stage: 0, color: '#e23b3b' },
+  { id: 'zap-negras',   slot: 'shoes', name: 'Zapatillas negras',     icon: '👟', price: 60,     stage: 0, color: '#15161b' },
+  { id: 'zap-neon',     slot: 'shoes', name: 'Zapatillas neón',       icon: '⚡', price: 1500,   stage: 1, color: '#7dff4a' },
+  { id: 'zap-oro',      slot: 'shoes', name: 'Zapatillas de oro',     icon: '🏅', price: 150000, stage: 3, color: '#ffd23f' },
+];
+const item = id => ITEMS.find(i => i.id === id);
+const itemColor = (it, st) => it.color === 'team' ? st.jersey : it.color;
 const stage = () => STAGES[S.stage];
 const isFinal = () => S.stage === STAGES.length - 1;
 const goalNow = () => isFinal() && S.champion ? null : stage().goal;   // en Leyendas el objetivo es ganar el campeonato
 const goalWhat = () => isFinal() ? 'para ganar el campeonato 🏆' : 'para que te vea un cazatalentos';
 
 // ---------- Guardado ----------
-const FRESH = () => ({ points:0, day:1, total:0, stage:0, best:0, char:null, champion: 0, wins:0, losses:0,
+const FRESH = () => ({ points:0, day:1, total:0, stage:0, best:0, char:null, champion: 0, wins:0, losses:0, style: { owned: [], eq: {} },
   pid: Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''), lv:Object.fromEntries(UPS.map(u=>[u.id,0])) });
 let S = FRESH();
 try { const raw = localStorage.getItem('canastaman2d-v2'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch(e) {}
@@ -341,6 +387,50 @@ function missionsHtml() {
   const next = new Date(); next.setHours(24, 0, 0, 0);
   const hrs = Math.ceil((next - Date.now()) / 36e5);
   return `<div class="missions">${gift}<h3>📋 Misiones de hoy <small>nuevas en ${hrs} h</small></h3><ul>${rows}</ul></div>`;
+}
+
+// ---------- Vestuario (en la tienda) ----------
+let wardrobeOpen = false;
+function wardrobeHtml() {
+  const st = stage(), own = S.style.owned, eq = S.style.eq;
+  const groups = Object.entries(SLOTS).map(([slot, label]) => {
+    const cards = ITEMS.filter(i => i.slot === slot).map(it => {
+      const owned = own.includes(it.id), on = eq[slot] === it.id;
+      const locked = it.champ ? !S.champion : S.stage < it.stage;
+      const btn = locked ? `<span class="lock">🔒 ${it.champ ? 'Gana el campeonato' : 'Llega a los ' + STAGES[it.stage].team}</span>`
+        : owned ? `<button class="btn mini ${on ? 'ghost' : ''}" data-wear="${it.id}">${on ? 'Quitar' : 'Ponérmelo'}</button>`
+        : `<button class="btn mini" data-buy="${it.id}" ${S.points < it.price ? 'disabled' : ''}>${it.price ? fmt(it.price) + ' pts' : 'Gratis'}</button>`;
+      return `<div class="item ${on ? 'on' : ''} ${locked ? 'locked' : ''}"><span class="ico" style="--c:${itemColor(it, st)}">${it.icon}</span><b>${it.name}</b>${btn}</div>`;
+    }).join('');
+    return `<div class="slot"><h4>${label}</h4><div class="items">${cards}</div></div>`;
+  }).join('');
+  return `<details class="wardrobe" ${wardrobeOpen ? 'open' : ''}><summary>👕 Vestuario <small>${own.length} de ${ITEMS.length} accesorios</small></summary>
+    <div class="wgrid"><canvas id="wardPrev" width="150" height="190" aria-label="Vista previa de tu jugador"></canvas><div>${groups}</div></div></details>`;
+}
+// dibuja tu jugador en pequeño usando la misma función del juego
+function drawPreview() {
+  const pc = document.getElementById('wardPrev'); if (!pc) return;
+  const main = cx; cx = pc.getContext('2d');
+  cx.clearRect(0, 0, pc.width, pc.height);
+  cx.fillStyle = stage().floor; cx.fillRect(0, 168, pc.width, 22);
+  cx.save(); cx.translate(75 - 75 * 1.25, 168 - FLOOR * 1.25); cx.scale(1.25, 1.25);
+  person(75, stage(), S.char.num, S.char.skin, 1, '', S.style.eq);
+  cx.restore(); cx = main;
+}
+function bindWardrobe() {
+  const d = card.querySelector('.wardrobe'); if (!d) return;
+  d.ontoggle = () => { wardrobeOpen = d.open; if (d.open) drawPreview(); };
+  card.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    const it = item(b.dataset.buy);
+    if (S.points < it.price || S.style.owned.includes(it.id)) return;
+    S.points -= it.price; S.style.owned.push(it.id); S.style.eq[it.slot] = it.id; save();
+    beep(880, 0.08); setTimeout(() => beep(1320, 0.12), 80); renderShop();
+  });
+  card.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => {
+    const it = item(b.dataset.wear);
+    S.style.eq[it.slot] = S.style.eq[it.slot] === it.id ? null : it.id; save(); beep(660, 0.06); renderShop();
+  });
+  if (d.open) drawPreview();
 }
 
 // ---------- Racha en llamas ----------
@@ -608,7 +698,7 @@ function draw() {
   // compañero (mismo equipo)
   if (S.lv.mate) person(790, st, c.num === 23 ? 11 : 23, SKINS[3], 0.85, '');
   // jugador
-  person(playerX(), st, c.num, c.skin, 1, mode === 'play' ? c.name : '');
+  person(playerX(), st, c.num, c.skin, 1, mode === 'play' ? c.name : '', S.style.eq);
   // balones
   for (const b of balls) if (b.t >= 0 && !(b.phase === 'fall' && b.made && b.y < HOOP.y + 2)) ball(b.x, b.y, b.gold, b.fire);
   cx.strokeStyle = '#e8572a'; cx.lineWidth = 5; cx.beginPath(); cx.moveTo(HOOP.x - 30, HOOP.y); cx.lineTo(HOOP.x + 34, HOOP.y); cx.stroke();
@@ -628,16 +718,41 @@ function draw() {
   cx.globalAlpha = 1; cx.restore();
 }
 
-function person(x, st, num, skin, s, name) {
-  const y = FLOOR;
-  cx.fillStyle = '#222'; cx.fillRect(x - 10 * s, y - 40 * s, 8 * s, 40 * s); cx.fillRect(x + 2 * s, y - 40 * s, 8 * s, 40 * s);
-  cx.fillStyle = '#eee'; cx.fillRect(x - 12 * s, y - 5 * s, 11 * s, 5 * s); cx.fillRect(x + 1 * s, y - 5 * s, 11 * s, 5 * s);
-  cx.fillStyle = st.jersey; cx.fillRect(x - 14 * s, y - 85 * s, 28 * s, 46 * s);
+function person(x, st, num, skin, s, name, eq = {}) {
+  const y = FLOOR, P = (dx, dy, w, h) => cx.fillRect(x + dx * s, y + dy * s, w * s, h * s);
+  const col = slot => eq[slot] && item(eq[slot]) ? itemColor(item(eq[slot]), st) : null;
+  const shiny = c => c === '#ffd23f';                              // los accesorios de oro brillan
+  cx.fillStyle = '#222'; P(-10, -40, 8, 40); P(2, -40, 8, 40);    // piernas
+  if (col('socks')) { cx.fillStyle = col('socks'); P(-10, -20, 8, 15); P(2, -20, 8, 15); cx.fillStyle = 'rgba(0,0,0,.25)'; P(-10, -18, 8, 2); P(2, -18, 8, 2); }
+  cx.fillStyle = col('shoes') || '#eee'; P(-12, -5, 11, 5); P(1, -5, 11, 5);
+  if (col('shoes')) { cx.fillStyle = 'rgba(255,255,255,.7)'; P(-12, -2, 11, 1); P(1, -2, 11, 1); }
+  cx.fillStyle = st.jersey; P(-14, -85, 28, 46);
   cx.fillStyle = st.num; cx.font = `900 ${18 * s}px system-ui`; cx.textAlign = 'center'; cx.fillText(num, x, y - 55 * s);
+  if (col('neck')) { cx.strokeStyle = col('neck'); cx.lineWidth = 2.5 * s; cx.beginPath(); cx.arc(x, y - 86 * s, 9 * s, 0.15 * Math.PI, 0.85 * Math.PI); cx.stroke();
+    cx.fillStyle = col('neck'); cx.beginPath(); cx.arc(x, y - 76 * s, 3 * s, 0, 7); cx.fill(); }
+  const head = eq.head;
+  if (head === 'afro') { cx.fillStyle = col('head'); cx.beginPath(); cx.arc(x - 2 * s, y - 106 * s, 19 * s, 0, 7); cx.fill(); }
   cx.fillStyle = skin; cx.beginPath(); cx.arc(x, y - 98 * s, 13 * s, 0, 7); cx.fill();
-  cx.fillStyle = '#23262e'; cx.fillRect(x - 13 * s, y - 112 * s, 26 * s, 7 * s);
+  if (head !== 'afro' && head !== 'gorra') { cx.fillStyle = '#23262e'; P(-13, -112, 26, 7); }   // pelo corto
+  if (head === 'cinta-roja' || head === 'cinta-equipo') { cx.fillStyle = col('head'); P(-13, -107, 26, 5); P(-17, -106, 5, 9); }
+  if (head === 'gorra') { cx.fillStyle = col('head'); cx.beginPath(); cx.arc(x, y - 104 * s, 14 * s, Math.PI, 0); cx.fill(); P(-24, -106, 12, 4);
+    cx.fillStyle = '#ff8a2a'; P(-3, -116, 6, 3); }
+  if (head === 'cresta') { cx.fillStyle = '#23262e'; P(-13, -112, 26, 6);
+    ['#ff5c8a', '#ffd23f', '#3ddc84', '#4aa3ff'].forEach((c, i) => { cx.fillStyle = c; P(-8 + i * 4, -126 + i * 2, 4, 15 - i * 2); }); }
+  if (head === 'corona') { cx.fillStyle = '#23262e'; P(-13, -112, 26, 7); cx.fillStyle = '#ffd23f'; cx.beginPath();
+    cx.moveTo(x - 12 * s, y - 112 * s); cx.lineTo(x - 12 * s, y - 126 * s); cx.lineTo(x - 6 * s, y - 118 * s); cx.lineTo(x, y - 130 * s);
+    cx.lineTo(x + 6 * s, y - 118 * s); cx.lineTo(x + 12 * s, y - 126 * s); cx.lineTo(x + 12 * s, y - 112 * s); cx.fill();
+    cx.fillStyle = '#e23b3b'; cx.beginPath(); cx.arc(x, y - 119 * s, 2.2 * s, 0, 7); cx.fill(); }
+  if (eq.eyes === 'gafas-sol') { cx.fillStyle = '#111'; P(1, -102, 13, 5); P(-12, -101, 13, 2); }
+  if (eq.eyes === 'gafas-sport') { cx.fillStyle = '#1b1f28'; P(-13, -101, 26, 2); cx.fillStyle = col('eyes'); P(2, -103, 12, 6); cx.fillStyle = 'rgba(255,255,255,.6)'; P(4, -102, 4, 2); }
+  // brazo levantado (con manga y muñequera)
   cx.strokeStyle = skin; cx.lineWidth = 6 * s; cx.beginPath(); cx.moveTo(x + 10 * s, y - 80 * s); cx.lineTo(x + 22 * s, y - 104 * s); cx.stroke();
-  if (name) { cx.fillStyle = 'rgba(255,255,255,.85)'; cx.font = '700 12px system-ui'; cx.fillText(name, x, y - 120 * s); }
+  if (col('arm')) { cx.strokeStyle = col('arm'); cx.beginPath(); cx.moveTo(x + 10 * s, y - 80 * s); cx.lineTo(x + 18 * s, y - 96 * s); cx.stroke(); }
+  if (col('wrist')) { cx.strokeStyle = col('wrist'); cx.lineWidth = 7.5 * s; cx.beginPath(); cx.moveTo(x + 19 * s, y - 98 * s); cx.lineTo(x + 21 * s, y - 102 * s); cx.stroke(); }
+  if (Object.values(eq).some(id => item(id) && shiny(itemColor(item(id), st))) && Math.random() < 0.08) {   // destello del oro
+    cx.fillStyle = '#fff'; const gx = x + (Math.random() * 30 - 15) * s, gy = y - (20 + Math.random() * 100) * s; cx.fillRect(gx - 4, gy, 9, 1.5); cx.fillRect(gx, gy - 4, 1.5, 9);
+  }
+  if (name) { cx.fillStyle = 'rgba(255,255,255,.85)'; cx.font = '700 12px system-ui'; cx.textAlign = 'center'; cx.fillText(name, x, y - (head === 'corona' || head === 'cresta' ? 136 : head === 'afro' ? 130 : 120) * s); }
 }
 
 function ball(x, y, gold, fire) {
@@ -886,6 +1001,7 @@ function renderShop() {
     <div class="row" style="margin:12px 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span>
       <span class="row" style="margin:0;gap:8px"><a class="btn share" href="${shareLink()}" target="_blank" rel="noopener">Compartir 📲</a><button class="btn" id="go">Empezar día ${S.day} ▶</button></span></div>
     ${missionsHtml()}
+    ${wardrobeHtml()}
     <div class="shop">${items}</div>
     <div class="rankbox">
       <div class="row" style="margin:0"><h3>🏆 Ranking</h3><div class="tabs">
@@ -910,6 +1026,7 @@ function renderShop() {
     m.claimed = true; S.points += m.reward; S.total += m.reward; save();
     beep(784, 0.1); setTimeout(() => beep(1175, 0.18), 100); renderShop();
   });
+  bindWardrobe();
   const gb = document.getElementById('giftBtn');
   if (gb) gb.onclick = () => { S.daily.giftClaimed = true; S.points += S.daily.gift; S.total += S.daily.gift; save(); [659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.15), i * 110)); renderShop(); };
   card.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
