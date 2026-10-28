@@ -4,6 +4,10 @@
 //                              (también acepta los formatos antiguos: kind 'day' | 'champ' con value, y kind 'play')
 import { getStore } from '@netlify/blobs';
 
+// Temporada actual: solo cuentan para el ranking las puntuaciones de partidas de esta temporada
+// (las partidas viejas siguen sumando al contador, pero no entran en las tablas)
+const SEASON = 1;
+
 const BOARDS = {
   day:   { better: (a, b) => a > b, max: 1e15 },   // más puntos en un día
   champ: { better: (a, b) => a < b, max: 100000 }, // menos días para ser campeón
@@ -14,6 +18,7 @@ const top = (data, id) => ({
   ...Object.fromEntries(Object.keys(BOARDS).map(k =>
     [k, (data[k] || []).slice(0, 10).map(e => ({ name: e.name, team: e.team, value: e.value, me: e.id === id }))])),
   stats: data.stats || { plays: 0, players: 0 },
+  season: SEASON,
 });
 
 // Se puede llamar desde otras webs (por ejemplo, el juego subido a itch.io)
@@ -78,11 +83,12 @@ async function handle(req) {
         const st = d.stats || (d.stats = { plays: 0, players: 0 });
         st.plays++; if (newPlayer) st.players++;
       }
-      if (kind === 'end') {
+      const inSeason = body.season === SEASON;
+  if (kind === 'end' && inSeason) {
         addScore(d, 'day', id, name, team, Number(body.earned));
         if (body.champ) addScore(d, 'champ', id, name, team, Number(body.champ));
       }
-      if (kind === 'day' || kind === 'champ') addScore(d, kind, id, name, team, Number(body.value));
+      if ((kind === 'day' || kind === 'champ') && inSeason) addScore(d, kind, id, name, team, Number(body.value));
     });
     return Response.json(top(data, id));
   } catch (e) {
