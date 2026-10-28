@@ -186,7 +186,7 @@
     <a href="https://www.linkedin.com/in/darioriverosp" target="_blank" rel="noopener" title="LinkedIn"><i style="--icon:url(icons/linkedin.svg)"></i></a>
     <a href="https://github.com/darioriverosp" target="_blank" rel="noopener" title="GitHub"><i style="--icon:url(icons/github.svg)"></i></a>
   </nav>
-  <nav><a href="#opinion" id="fbOpen">💬 ¿Ideas o errores? Escríbeme</a> · <a href="3d.html">Jugar en 3D</a> · <a href="https://wa.me/?text=%F0%9F%8F%80%20Juega%20CanastaMan%20conmigo%3A%20del%20barrio%20a%20la%20Liga%20de%20Leyendas.%20https%3A%2F%2Fcanastaman.netlify.app" target="_blank" rel="noopener">Compartir en WhatsApp</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></nav>
+  <nav><a href="#opinion" id="fbOpen">💬 ¿Ideas o errores? Escríbeme</a> · <a href="3d.html">Jugar en 3D</a> · <a href="https://wa.me/?text=%F0%9F%8F%80%20Juega%20CanastaMan%20conmigo%3A%20del%20barrio%20a%20la%20Liga%20de%20Leyendas.%20https%3A%2F%2Fdarioriverosp.itch.io%2Fcanastaman" target="_blank" rel="noopener">Compartir en WhatsApp</a> · <a href="https://github.com/darioriverosp/canasta-infinita" target="_blank" rel="noopener">Código en GitHub</a></nav>
   <p class="fine">© 2026 CanastaMan · Versión beta · Gratis y sin anuncios</p>
 </footer>
 
@@ -874,6 +874,7 @@ let lastStats = null;
 
 // ---------- Compartir por WhatsApp ----------
 const SITE = 'https://canastaman.netlify.app';
+const SHARE_URL = 'https://darioriverosp.itch.io/canastaman';     // enlace que se comparte por WhatsApp
 // En Netlify (o en local) el servidor está en la misma web; desde itch.io hay que llamar a Netlify directamente
 const ON_SITE = location.hostname.endsWith('netlify.app') || ['localhost', '127.0.0.1'].includes(location.hostname);
 const SERVER = ON_SITE ? '' : SITE;
@@ -881,7 +882,7 @@ function shareLink() {
   const msg = S.champion ? `🏆 Fui campeón de CanastaMan en ${S.champion} días. ¿Me ganas?`
     : S.best ? `🏀 Hice ${fmt(S.best)} pts en un día jugando CanastaMan con los ${stage().team}. ¿Me superas?`
     : '🏀 Juega CanastaMan conmigo: del barrio a la Liga de Leyendas.';
-  return 'https://wa.me/?text=' + encodeURIComponent(`${msg} ${SITE}`);
+  return 'https://wa.me/?text=' + encodeURIComponent(`${msg} ${SHARE_URL}`);
 }
 
 // ---------- ¿Ideas o errores? (Netlify Forms) ----------
