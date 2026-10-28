@@ -151,7 +151,11 @@
   @media (max-width:700px) {
     body { padding:8px 12px; }
     h1 { font-size:20px; margin:0 0 6px; }
-    #overlay { position:static; background:none; padding:10px 0 0; border-radius:0; overflow:visible; }
+    #overlay { position:static; background:none; padding:10px 12px 0; border-radius:0; overflow:visible; }
+    #wrap { width:calc(100% + 24px); margin:0 -12px; max-width:none; }
+    canvas { border-radius:0; }
+    footer { margin-top:24px; }
+    p.help { font-size:12px; }
     .card { padding:14px; }
     .shop { grid-template-columns:1fr 1fr; }
     .up { padding:8px; }
@@ -758,7 +762,7 @@ function draw() {
   if (mode === 'play') { meter(); hud(); }
   if (screenFlash > 0) { cx.fillStyle = `rgba(255,255,255,${screenFlash * 0.35})`; cx.fillRect(-20, -20, W + 40, H + 40); }
   for (const t of texts) {
-    cx.globalAlpha = Math.max(0, Math.min(1, t.life)); cx.fillStyle = t.c; cx.font = `800 ${t.size}px system-ui`;
+    cx.globalAlpha = Math.max(0, Math.min(1, t.life)); cx.fillStyle = t.c; cx.font = `800 ${Math.round(t.size * Math.min(1.4, hudScale()))}px system-ui`;
     const half = cx.measureText(t.s).width / 2, x = Math.max(half + 12, Math.min(W - half - 12, t.x)); // que no se salga de la pantalla
     cx.textAlign = 'center'; cx.strokeStyle = 'rgba(0,0,0,.6)'; cx.lineWidth = 4; cx.strokeText(t.s, x, t.y); cx.fillText(t.s, x, t.y);
   }
@@ -813,14 +817,15 @@ function ball(x, y, gold, fire) {
 }
 
 function meter() {
-  const x = playerX() - 60, top = FLOOR - 190, h = 170, z = zoneHalf();
-  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(x, top, 18, h);
-  cx.fillStyle = '#3ddc84'; cx.fillRect(x, top + h * (0.5 - z), 18, h * z * 2);
-  cx.fillStyle = '#b6ffd5'; cx.fillRect(x, top + h * (0.5 - z * .3), 18, h * z * .6);
+  const k = Math.min(1.5, hudScale()), mw = 18 * k;                // más ancho en el móvil
+  const x = playerX() - 50 - mw, top = FLOOR - 190, h = 170, z = zoneHalf();
+  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(x, top, mw, h);
+  cx.fillStyle = '#3ddc84'; cx.fillRect(x, top + h * (0.5 - z), mw, h * z * 2);
+  cx.fillStyle = '#b6ffd5'; cx.fillRect(x, top + h * (0.5 - z * .3), mw, h * z * .6);
   const my = top + h * R.m;
   cx.fillStyle = R.reloading > 0 || R.balls === 0 ? '#777' : '#fff';
-  cx.beginPath(); cx.moveTo(x + 22, my); cx.lineTo(x + 34, my - 7); cx.lineTo(x + 34, my + 7); cx.fill();
-  cx.fillRect(x - 2, my - 1.5, 22, 3);
+  cx.beginPath(); cx.moveTo(x + mw + 4, my); cx.lineTo(x + mw + 4 + 12 * k, my - 7 * k); cx.lineTo(x + mw + 4 + 12 * k, my + 7 * k); cx.fill();
+  cx.fillRect(x - 2, my - 1.5 * k, mw + 4, 3 * k);
 }
 
 function txt(s, x, y, font, col, align = 'left') {
@@ -828,20 +833,17 @@ function txt(s, x, y, font, col, align = 'left') {
   cx.strokeText(s, x, y); cx.fillStyle = col; cx.fillText(s, x, y);
 }
 
+// En pantallas pequeñas el canvas se ve chico: el marcador se dibuja más grande para que se lea
+function hudScale() { return Math.min(1.6, Math.max(1, 640 / (cv.clientWidth || W))); }
+const RIVAL_SHORT = ['PAR', 'LOB', 'PAN', 'DRA', 'TIT'];
+
 function hud() {
-  const st = stage();
+  const st = stage(), k = hudScale(), small = k > 1.2;
+  // izquierda: día, tiempo, balones, recarga y racha
+  cx.save(); cx.scale(k, k);
   txt(`Día ${S.day} · ${st.team}`, 18, 34, '800 22px system-ui', '#fff');
   txt(`⏱ ${Math.max(0, R.t).toFixed(1)} s`, 18, 64, '800 22px system-ui', R.t < 10 ? '#ff5c5c' : '#fff');
   if (R.t > 0 && R.t <= CLUTCH) txt('x2 ⏰', 140 + Math.sin(clock * 12) * 2, 64, '900 22px system-ui', '#ffd23f');
-  txt(`${fmt(S.points)} pts`, W - 18, 34, '800 22px system-ui', '#ffd23f', 'right');
-  txt(`${fmt(perBasket())} por canasta`, W - 18, 56, '600 14px system-ui', '#eee', 'right');
-  const goal = goalNow();
-  if (goal) txt(R.earned >= goal ? (isFinal() ? '🏆 ¡Campeonato ganado!' : '👀 ¡Cazatalentos mirando!') : `${isFinal() ? '🏆' : '🎯'} Hoy: ${fmt(R.earned)} / ${fmt(goal)} pts`, W - 18, 80, '700 15px system-ui', R.earned >= goal ? '#3ddc84' : '#fff', 'right');
-  // logo
-  cx.font = 'italic 900 22px system-ui'; cx.textAlign = 'left';
-  const w1 = cx.measureText('Canasta').width, w2 = cx.measureText('Man').width, lx = W / 2 - (w1 + w2) / 2;
-  txt('Canasta', lx, 34, 'italic 900 22px system-ui', '#ff8a2a'); txt('Man', lx + w1, 34, 'italic 900 22px system-ui', '#fff');
-  // carro de balones
   const n = 6 + S.lv.rack;
   for (let i = 0; i < n; i++) {
     cx.globalAlpha = i < R.balls ? 1 : .2;
@@ -855,13 +857,38 @@ function hud() {
   }
   if (R.fire) txt(`🔥 EN LLAMAS x2 · ${Math.ceil(R.fireLeft)} s · racha ${R.streak}`, 20, 160, '900 18px system-ui', '#ff8a2a');
   else if (R.streak >= 3) txt(`Racha x${R.streak} (a ${Math.ceil(R.streak / FIRE_AT + 0.001) * FIRE_AT} te enciendes 🔥)`, 20, 160, '800 15px system-ui', '#3ddc84');
+  cx.restore();
+  // derecha: puntos y objetivo
+  cx.save(); cx.translate(W, 0); cx.scale(k, k);
+  txt(`${fmt(S.points)} pts`, -18, 34, '800 22px system-ui', '#ffd23f', 'right');
+  txt(`${fmt(perBasket())} por canasta`, -18, 56, '600 14px system-ui', '#eee', 'right');
+  const goal = goalNow();
+  if (goal) txt(R.earned >= goal ? (isFinal() ? '🏆 ¡Campeonato ganado!' : '👀 ¡Cazatalentos mirando!') : `${isFinal() ? '🏆' : '🎯'} Hoy: ${fmt(R.earned)} / ${fmt(goal)} pts`, -18, 80, '700 15px system-ui', R.earned >= goal ? '#3ddc84' : '#fff', 'right');
+  cx.restore();
+  const scoreCol = R.my >= R.rival ? '#3ddc84' : '#ff5c5c';
+  if (small) {
+    // móvil: marcador compacto arriba en el centro (el logo ya está encima de la página)
+    cx.save(); cx.translate(W / 2, 8); cx.scale(k, k);
+    cx.fillStyle = 'rgba(10,12,16,.75)'; cx.fillRect(-100, 0, 200, 32);
+    cx.fillStyle = st.jersey; cx.fillRect(-100, 0, 5, 32);
+    if (R.flash > 0) { cx.fillStyle = `rgba(255,92,92,${R.flash * .5})`; cx.fillRect(10, 0, 90, 32); }
+    txt('TÚ', -88, 22, '800 14px system-ui', '#fff');
+    txt(`${R.my} – ${R.rival}`, -10, 24, '900 20px system-ui', scoreCol, 'center');
+    txt(RIVAL_SHORT[S.stage], 90, 22, '800 14px system-ui', '#ddd', 'right');
+    cx.restore();
+    return;
+  }
+  // logo
+  cx.font = 'italic 900 22px system-ui'; cx.textAlign = 'left';
+  const w1 = cx.measureText('Canasta').width, w2 = cx.measureText('Man').width, lx = W / 2 - (w1 + w2) / 2;
+  txt('Canasta', lx, 34, 'italic 900 22px system-ui', '#ff8a2a'); txt('Man', lx + w1, 34, 'italic 900 22px system-ui', '#fff');
   // marcador del partido
   const bx = W / 2, by = 104;
   cx.fillStyle = 'rgba(10,12,16,.72)'; cx.fillRect(bx - 190, by, 380, 36);
   cx.fillStyle = st.jersey; cx.fillRect(bx - 190, by, 6, 36);
   cx.fillStyle = R.flash > 0 ? `rgba(255,92,92,${R.flash * .5})` : 'transparent'; cx.fillRect(bx + 15, by, 175, 36);
   txt('TÚ', bx - 175, by + 25, '800 15px system-ui', '#fff');
-  txt(`${R.my} – ${R.rival}`, bx - 50, by + 27, '900 22px system-ui', R.my >= R.rival ? '#3ddc84' : '#ff5c5c', 'center');
+  txt(`${R.my} – ${R.rival}`, bx - 50, by + 27, '900 22px system-ui', scoreCol, 'center');
   txt(RIVALS[S.stage].toUpperCase(), bx + 180, by + 24, '800 12px system-ui', '#ddd', 'right');
 }
 
