@@ -83,6 +83,19 @@
   ol.rank small { color:var(--muted); }
   ol.rank b { font-variant-numeric:tabular-nums; }
   .share { background:#25d366; color:#08260f; }
+  .missions { background:var(--card); border-radius:10px; padding:12px; margin:0 0 12px; }
+  .missions h3 { margin:0 0 8px; font-size:16px; } .missions h3 small { color:var(--muted); font-weight:600; font-size:12px; }
+  .missions ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .missions li { display:flex; gap:10px; align-items:center; background:rgba(255,255,255,.03); border-radius:8px; padding:8px 10px; }
+  .missions li > div { flex:1; min-width:0; } .missions li b { font-size:14px; }
+  .missions li small { color:var(--muted); font-size:11px; }
+  .missions li .bar { margin:4px 0 2px; }
+  .missions li.done { outline:1px solid var(--good); } .missions li.claimed { opacity:.55; }
+  .missions .ok { color:var(--good); font-weight:900; font-size:18px; padding:0 8px; }
+  .btn.mini { padding:7px 12px; font-size:13px; width:auto; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .gift { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:linear-gradient(90deg, rgba(255,210,63,.18), transparent); border:1px solid rgba(255,210,63,.45); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:14px; }
+  .gift .btn { background:var(--gold); }
   #rotate { display:none; color:var(--gold); font-size:13px; margin:8px 0 0; text-align:center; }
   footer { margin-top:auto; padding-top:20px; font-size:13px; color:var(--muted); text-align:center; display:flex; flex-direction:column; gap:6px; }
   footer p { margin:0; }
@@ -240,10 +253,11 @@ function beep(f, d = 0.08, type = 'square', v = 0.05) {
 
 // ---------- Estado del día ----------
 let R = null, mode = 'menu';
-const balls = [], fx = [], texts = [];
-let shake = 0;
+const balls = [], fx = [], texts = [], confetti = [], flashes = [];
+let shake = 0, hype = 0, netPulse = 0, screenFlash = 0, clock = 0;
 
 function startDay() {
+  ensureDaily();
   const L = S.lv;
   R = { t: DAY_BASE + L.time * DAY_STEP, balls: 6 + L.rack, reloading: 0, shots: 0, makes: 0, perfects: 0, golds: 0,
         rackMade: 0, rackShot: 0, perfectRacks: 0, earned: 0, mateEarned: 0, m: 0, dir: 1, mateT: 0, best: 0, streak: 0,
@@ -268,8 +282,70 @@ function rivalInterval() {
   return 2.25 / rivalPerSec * (0.6 + Math.random() * 0.8);
 }
 
+// ---------- Misiones diarias y regalo por volver ----------
+// Cada día (de calendario) salen 3 misiones nuevas. El progreso se suma entre los días de juego de ese día.
+const MISSIONS = [
+  { id: 'makes',  n: [30, 60, 100], text: n => `Mete ${n} canastas`,                 stat: r => r.makes },
+  { id: 'swish',  n: [8, 15, 25],   text: n => `Haz ${n} tiros limpios`,             stat: r => r.perfects },
+  { id: 'fire',   n: [1, 2, 3],     text: n => `Enciéndete 🔥 ${n} ${n === 1 ? 'vez' : 'veces'}`, stat: r => r.fires },
+  { id: 'racks',  n: [2, 4, 6],     text: n => `Haz ${n} carros perfectos`,          stat: r => r.perfectRacks },
+  { id: 'wins',   n: [2, 3, 5],     text: n => `Gana ${n} partidos`,                 stat: () => 0 },   // se suma al acabar el día
+  { id: 'days',   n: [3, 5, 8],     text: n => `Juega ${n} días`,                    stat: () => 0 },
+  { id: 'streak', n: [8, 12, 18],   text: n => `Consigue una racha de ${n}`,         stat: r => r.best, max: true },
+  { id: 'gold',   n: [2, 4, 8],     text: n => `Mete ${n} balones dorados`,          stat: r => r.golds, needs: () => S.lv.luck > 0 },
+];
+const dateKey = (d = new Date()) => d.toLocaleDateString('sv');            // AAAA-MM-DD en hora local
+const missionDef = m => MISSIONS.find(x => x.id === m.id);
+const dailyReward = () => Math.max(30, Math.floor(Math.max(S.best, 50) * 0.6));
+function ensureDaily() {
+  const today = dateKey(), yesterday = dateKey(new Date(Date.now() - 864e5));
+  if (S.daily?.date === today) return;
+  const streak = S.daily?.date === yesterday ? (S.daily.streak || 1) + 1 : 1;
+  const tier = S.stage >= 3 ? 2 : S.stage >= 1 ? 1 : 0;
+  const pool = MISSIONS.filter(m => !m.needs || m.needs()).sort(() => Math.random() - 0.5).slice(0, 3);
+  const reward = dailyReward();
+  S.daily = { date: today, streak, gift: Math.floor(reward * 0.4 * Math.min(streak, 7)), giftClaimed: false,
+              missions: pool.map(m => ({ id: m.id, n: m.n[tier], prog: 0, claimed: false, toast: false, reward })) };
+  save();
+}
+// progreso de una misión contando también el día que se está jugando
+function missionValue(m) {
+  const d = missionDef(m), live = mode === 'play' && R ? d.stat(R) : 0;
+  return d.max ? Math.max(m.prog, live) : m.prog + live;
+}
+function checkMissions() {
+  for (const m of S.daily?.missions || []) if (!m.toast && missionValue(m) >= m.n) {
+    m.toast = true;
+    addText(W / 2, 300, `✅ Misión cumplida: ${missionDef(m).text(m.n)}`, '#3ddc84', 22);
+    beep(988, 0.1); setTimeout(() => beep(1319, 0.15), 100);
+  }
+}
+function applyMissions(win) {
+  for (const m of S.daily?.missions || []) {
+    const d = missionDef(m);
+    if (d.max) m.prog = Math.max(m.prog, d.stat(R));
+    else m.prog += d.id === 'wins' ? (win ? 1 : 0) : d.id === 'days' ? 1 : d.stat(R);
+    if (m.prog >= m.n) m.toast = true;
+  }
+}
+function missionsHtml() {
+  const d = S.daily; if (!d) return '';
+  const rows = d.missions.map((m, i) => {
+    const v = Math.min(m.n, m.prog), done = v >= m.n;
+    return `<li class="${m.claimed ? 'claimed' : done ? 'done' : ''}"><div><b>${missionDef(m).text(m.n)}</b>
+      <div class="bar"><i style="width:${v / m.n * 100}%"></i></div><small>${v} / ${m.n} · premio ${fmt(m.reward)} pts</small></div>
+      ${m.claimed ? '<span class="ok">✔</span>' : `<button class="btn mini" data-claim="${i}" ${done ? '' : 'disabled'}>Reclamar</button>`}</li>`;
+  }).join('');
+  const gift = d.giftClaimed ? '' : `<div class="gift"><span>🎁 <b>Regalo diario</b> · ${d.streak} ${d.streak === 1 ? 'día' : 'días seguidos'} jugando${d.streak < 7 ? ' (vuelve mañana y será mayor)' : ''}</span>
+      <button class="btn mini" id="giftBtn">+${fmt(d.gift)} pts</button></div>`;
+  const next = new Date(); next.setHours(24, 0, 0, 0);
+  const hrs = Math.ceil((next - Date.now()) / 36e5);
+  return `<div class="missions">${gift}<h3>📋 Misiones de hoy <small>nuevas en ${hrs} h</small></h3><ul>${rows}</ul></div>`;
+}
+
 // ---------- Racha en llamas ----------
 const FIRE_AT = 10;                                            // canastas seguidas para encenderse
+const CLUTCH = 5;                                              // últimos segundos del día: cada canasta vale x2
 
 function perBasket() { return DIST[S.lv.dist].pts * (1 + S.lv.mult) * stage().mult; }
 function zoneHalf() { return Math.max(0.05, (0.15 - S.lv.dist * 0.012) * (1 + S.lv.aim * 0.12)); }
@@ -278,7 +354,7 @@ const playerX = () => DIST[S.lv.dist].x;
 function shoot() {
   if (mode !== 'play' || R.t <= 0 || R.reloading > 0 || R.balls <= 0) return;
   const off = Math.abs(R.m - 0.5), z = zoneHalf();
-  const made = off < z, perfect = off < z * 0.3;
+  const made = off < z, perfect = off < z * 0.3, near = !made && off < z * 1.35;   // near: falló por poco
   const n = 1 + S.lv.multi;
   R.balls--; R.shots += n; R.rackShot++;
   const fire = R.fire;                                         // este tiro sale con fuego si ya estabas en llamas
@@ -295,7 +371,7 @@ function shoot() {
   }
   for (let i = 0; i < n; i++) {
     const gold = Math.random() * 100 < luckChance(S.lv.luck);
-    launch(playerX() + 20, FLOOR - 95, made, { perfect, gold, fire, delay: i * 0.12, mate: false });
+    launch(playerX() + 20, FLOOR - 95, made, { perfect, gold, fire, near, delay: i * 0.12, mate: false });
   }
   beep(220, 0.05, 'triangle');
   if (R.balls === 0) {
@@ -322,6 +398,10 @@ function scoreBall(b) {
   if (b.perfect) pts = Math.floor(pts * 1.5);
   if (b.gold) pts *= 5;
   if (b.fire) pts *= 2;
+  const clutch = R.t <= CLUTCH && R.t > -1;                    // últimos segundos: todo vale doble
+  if (clutch) pts *= 2;
+  netPulse = 1;
+  celebrate(b.mate ? 0.06 : b.gold ? 0.6 : b.fire || clutch ? 0.45 : b.perfect ? 0.4 : 0.14);
   const before = R.earned;
   S.points += pts; S.total += pts; R.earned += pts;
   if (b.mate) R.mateEarned += pts;
@@ -373,6 +453,13 @@ function update(dt) {
       }
     }
     R.flash = Math.max(0, R.flash - dt * 2);
+    const sec = Math.ceil(R.t);                                // últimos segundos: aviso y latido cada segundo
+    if (R.t > 0 && R.t <= CLUTCH && sec !== R.lastSec) {
+      if (R.lastSec === undefined || R.lastSec > CLUTCH) { addText(W / 2, 250, '⏰ ¡ÚLTIMOS SEGUNDOS! Todo vale x2', '#ff5c5c', 30); hype = Math.max(hype, 0.5); }
+      beep(sec <= 2 ? 880 : 660, 0.08, 'square', 0.05);
+    }
+    R.lastSec = sec;
+    checkMissions();
     if (R.t <= 0 && !balls.some(b => b.phase === 'air')) endDay();
   }
   for (const b of balls) {
@@ -387,7 +474,7 @@ function update(dt) {
       if (p >= 1) {
         b.phase = 'fall';
         if (b.made) { b.vx = 0; b.vy = 140; if (mode === 'play') scoreBall(b); }
-        else { b.vx = (b.tx < HOOP.x ? -1 : 1) * (120 + Math.random() * 120); b.vy = -220; beep(120, .06, 'sawtooth', .03); if (!b.mate && mode === 'play') addText(b.tx, HOOP.y - 30, 'fallo', '#ff5c5c', 16); }
+        else { b.vx = (b.tx < HOOP.x ? -1 : 1) * (120 + Math.random() * 120); b.vy = -220; beep(120, .06, 'sawtooth', .03); if (!b.mate && mode === 'play') addText(b.tx, HOOP.y - 30, b.near ? '¡Casi! 😬' : 'fallo', b.near ? '#ffd23f' : '#ff5c5c', b.near ? 20 : 16); }
       }
     } else {
       b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt;
@@ -401,12 +488,72 @@ function update(dt) {
   for (const t of texts) { t.y -= 40 * dt; t.life -= dt; }
   for (let i = texts.length - 1; i >= 0; i--) if (texts[i].life <= 0) texts.splice(i, 1);
   shake *= Math.pow(0.002, dt);
+  // emoción del público, red, confeti y flashes
+  clock += dt;
+  hype = Math.max(R?.fire && mode === 'play' ? 0.7 : 0, hype - dt * 0.35);
+  netPulse = Math.max(0, netPulse - dt * 3);
+  screenFlash = Math.max(0, screenFlash - dt * 3);
+  for (const p of confetti) { p.x += p.vx * dt + Math.sin(clock * 6 + p.r) * 20 * dt; p.y += p.vy * dt; p.r += p.vr * dt; p.life -= dt; }
+  for (let i = confetti.length - 1; i >= 0; i--) if (confetti[i].life <= 0 || confetti[i].y > H) confetti.splice(i, 1);
+  for (const f of flashes) f.life -= dt;
+  for (let i = flashes.length - 1; i >= 0; i--) if (flashes[i].life <= 0) flashes.splice(i, 1);
+}
+
+// Celebración de una gran jugada: confeti, flash de pantalla y grito del público
+function celebrate(power) {
+  hype = Math.min(1, hype + power);
+  if (power < 0.35) return;
+  screenFlash = Math.max(screenFlash, power * 0.8);
+  const cols = ['#ff8a2a', '#ffd23f', '#3ddc84', '#4aa3ff', '#ff5c8a', '#ffffff', stage().jersey];
+  for (let i = 0; i < 40 * power; i++)
+    confetti.push({ x: Math.random() * W, y: -10 - Math.random() * 80, vx: (Math.random() - .5) * 60, vy: 90 + Math.random() * 120,
+                    r: Math.random() * 6, vr: (Math.random() - .5) * 10, c: cols[i % cols.length], life: 4 });
+  cheer(power);
+}
+function cheer(power) {                                       // grito del público: ruido filtrado que sube y baja
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const d = 1.1, buf = AC.createBuffer(1, AC.sampleRate * d, AC.sampleRate), data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) { const t = i / data.length; data[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * t) * (0.6 + 0.4 * Math.sin(t * 40)); }
+    const src = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain();
+    fl.type = 'bandpass'; fl.frequency.value = 900; fl.Q.value = 0.6; g.gain.value = 0.1 + power * 0.15;
+    src.buffer = buf; src.connect(fl); fl.connect(g); g.connect(AC.destination); src.start();
+  } catch (e) {}
 }
 
 // ---------- Dibujo ----------
 // Edificios del barrio (fijos para que no parpadeen)
 const CITY = Array.from({ length: 14 }, (_, i) => ({ x: i * 72 - 10, w: 60 + (i * 37) % 30, h: 90 + (i * 53) % 150,
   win: Array.from({ length: 40 }, () => Math.random() < 0.4) }));
+
+// Público: salta y levanta los brazos según la emoción (hype); con mucha emoción saltan flashes de cámaras
+const SKIN_CROWD = ['#e2b07a', '#8a5a3a', '#f0d0b0', '#5a3a28'];
+function crowd(st, count, rows, baseY) {
+  for (let i = 0; i < count; i++) {
+    const x = rows === 1 ? 40 + i * 68 + (i % 3) * 9 : (i * 97) % W;
+    const jump = hype > 0.12 ? Math.abs(Math.sin(clock * (9 + i % 4) + i * 1.7)) * hype * 11 : Math.sin(clock * 1.5 + i) * 0.8;
+    const y = baseY - ((i * 31) % rows) * 28 - jump;
+    const shirt = i % 3 ? st.jersey : '#ddd', skin = SKIN_CROWD[i % 4];
+    if (hype > 0.4 && i % 2 === 0) {                        // brazos arriba
+      cx.strokeStyle = skin; cx.lineWidth = 3; cx.beginPath();
+      const wave = Math.sin(clock * 12 + i) * 3;
+      cx.moveTo(x - 6, y + 8); cx.lineTo(x - 10 + wave, y - 6); cx.moveTo(x + 6, y + 8); cx.lineTo(x + 10 - wave, y - 6); cx.stroke();
+    }
+    cx.fillStyle = skin; cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.fill();
+    cx.fillStyle = shirt; cx.fillRect(x - 7, y + 6, 14, rows === 1 ? 22 : 10);
+    if (R?.fire && i % 9 === 0) {                           // carteles cuando estás en llamas
+      cx.fillStyle = '#fff'; cx.fillRect(x - 12, y - 30, 24, 14);
+      cx.fillStyle = '#ff5a1a'; cx.font = '900 10px system-ui'; cx.textAlign = 'center'; cx.fillText('🔥', x, y - 19);
+    }
+    if (hype > 0.55 && st.gym && Math.random() < hype * 0.012) flashes.push({ x: x + 4, y: y - 2, life: 0.18 });
+  }
+  for (const f of flashes) {                                // flashes de cámaras
+    cx.globalAlpha = Math.max(0, f.life / 0.18); cx.fillStyle = '#fff';
+    cx.beginPath(); cx.arc(f.x, f.y, 5, 0, 7); cx.fill();
+    cx.fillRect(f.x - 12, f.y - 1, 24, 2); cx.fillRect(f.x - 1, f.y - 12, 2, 24);
+  }
+  cx.globalAlpha = 1;
+}
 
 function background(st) {
   const sky = cx.createLinearGradient(0, 0, 0, FLOOR);
@@ -421,14 +568,11 @@ function background(st) {
     }
     cx.strokeStyle = 'rgba(200,210,225,.25)'; cx.lineWidth = 1;
     for (let x = -100; x < W + 100; x += 14) { cx.beginPath(); cx.moveTo(x, FLOOR - 120); cx.lineTo(x + 120, FLOOR); cx.moveTo(x + 120, FLOOR - 120); cx.lineTo(x, FLOOR); cx.stroke(); }
+    crowd(st, 14, 1, FLOOR - 52);                           // vecinos mirando detrás de la valla
   } else {                                                  // gimnasio: gradas, pancarta del equipo y focos
     cx.fillStyle = 'rgba(0,0,0,.18)';
     for (let r = 0; r < 4; r++) cx.fillRect(0, FLOOR - 70 - r * 28, W, 14);
-    for (let i = 0; i < 70; i++) {                          // público
-      const x = (i * 97) % W, y = FLOOR - 78 - ((i * 31) % 4) * 28;
-      cx.fillStyle = ['#e2b07a', '#8a5a3a', '#f0d0b0', '#5a3a28'][i % 4]; cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.fill();
-      cx.fillStyle = i % 3 ? st.jersey : '#ddd'; cx.fillRect(x - 7, y + 6, 14, 10);
-    }
+    crowd(st, 70, 4, FLOOR - 78);
     cx.fillStyle = st.jersey; cx.fillRect(W / 2 - 170, 40, 340, 56);
     cx.fillStyle = st.num; cx.font = '900 34px system-ui'; cx.textAlign = 'center';
     cx.fillText(st.team.toUpperCase(), W / 2, 81);
@@ -456,8 +600,10 @@ function draw() {
   cx.fillStyle = '#666'; cx.fillRect(918, HOOP.y - 30, 8, FLOOR - HOOP.y + 30);
   cx.fillStyle = '#eee'; cx.fillRect(900, HOOP.y - 95, 12, 110);
   cx.strokeStyle = '#d33'; cx.lineWidth = 2; cx.strokeRect(902, HOOP.y - 45, 8, 40);
-  cx.strokeStyle = 'rgba(255,255,255,.7)'; cx.lineWidth = 1.5;
-  for (let i = 0; i <= 4; i++) { cx.beginPath(); cx.moveTo(HOOP.x - 26 + i * 13, HOOP.y); cx.lineTo(HOOP.x - 16 + i * 8, HOOP.y + 38); cx.stroke(); }
+  cx.strokeStyle = 'rgba(255,255,255,.7)'; cx.lineWidth = 1.5;                  // red: se estira al encestar
+  const stretch = Math.sin(netPulse * Math.PI) * 16, squeeze = netPulse * 5;
+  for (let i = 0; i <= 4; i++) { cx.beginPath(); cx.moveTo(HOOP.x - 26 + i * 13, HOOP.y); cx.lineTo(HOOP.x - 16 + squeeze + i * (8 - squeeze / 2), HOOP.y + 38 + stretch); cx.stroke(); }
+  cx.beginPath(); cx.moveTo(HOOP.x - 22, HOOP.y + 18 + stretch / 2); cx.lineTo(HOOP.x + 26, HOOP.y + 18 + stretch / 2); cx.stroke();
   const c = S.char || { name: '', num: 7, skin: SKINS[1] };
   // compañero (mismo equipo)
   if (S.lv.mate) person(790, st, c.num === 23 ? 11 : 23, SKINS[3], 0.85, '');
@@ -469,7 +615,11 @@ function draw() {
   for (const b of balls) if (b.t >= 0 && b.phase === 'fall' && b.made && b.y < HOOP.y + 2) ball(b.x, b.y, b.gold, b.fire);
   for (const p of fx) { cx.globalAlpha = Math.max(0, p.life / .7); cx.fillStyle = p.c; cx.fillRect(p.x, p.y, 5, 5); }
   cx.globalAlpha = 1;
+  for (const p of confetti) {                                 // confeti
+    cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-4, -2, 8, 4); cx.restore();
+  }
   if (mode === 'play') { meter(); hud(); }
+  if (screenFlash > 0) { cx.fillStyle = `rgba(255,255,255,${screenFlash * 0.35})`; cx.fillRect(-20, -20, W + 40, H + 40); }
   for (const t of texts) {
     cx.globalAlpha = Math.max(0, Math.min(1, t.life)); cx.fillStyle = t.c; cx.font = `800 ${t.size}px system-ui`;
     const half = cx.measureText(t.s).width / 2, x = Math.max(half + 12, Math.min(W - half - 12, t.x)); // que no se salga de la pantalla
@@ -520,6 +670,7 @@ function hud() {
   const st = stage();
   txt(`Día ${S.day} · ${st.team}`, 18, 34, '800 22px system-ui', '#fff');
   txt(`⏱ ${Math.max(0, R.t).toFixed(1)} s`, 18, 64, '800 22px system-ui', R.t < 10 ? '#ff5c5c' : '#fff');
+  if (R.t > 0 && R.t <= CLUTCH) txt('x2 ⏰', 140 + Math.sin(clock * 12) * 2, 64, '900 22px system-ui', '#ffd23f');
   txt(`${fmt(S.points)} pts`, W - 18, 34, '800 22px system-ui', '#ffd23f', 'right');
   txt(`${fmt(perBasket())} por canasta`, W - 18, 56, '600 14px system-ui', '#eee', 'right');
   const goal = goalNow();
@@ -602,17 +753,20 @@ function showPlays(st) {
   if (!st || !st.plays) return;
   document.getElementById('plays').textContent = `🏀 ${st.plays.toLocaleString('es')} días jugados por ${st.players.toLocaleString('es')} ${st.players === 1 ? 'jugador' : 'jugadores'}`;
 }
-function countPlay() {
-  return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: S.pid, kind: 'play' }) })
-    .then(r => r.ok ? r.json() : null).then(showPlays).catch(() => {});
-}
-
 // ---------- Ranking online (función de Netlify en /api/ranking) ----------
 const API = SERVER + '/api/ranking';
 let rankPost = null, rankTab = 'day', RANK = null;
-function sendScore(kind, value) {
-  return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: S.pid, name: S.char.name, team: stage().team, kind, value: Math.floor(value) }) }).catch(() => {});
+// Un solo envío al terminar cada día: cuenta el día jugado, tu puntuación y, si ya eres campeón, tus días
+// (si un envío se perdió, el siguiente lo recupera). Si el servidor está ocupado, se reintenta una vez.
+async function saveDay(earned) {
+  const body = JSON.stringify({ id: S.pid, name: S.char.name, team: stage().team, kind: 'end', earned: Math.floor(earned), champ: S.champion || undefined });
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      if (r.ok) { RANK = await r.json(); showPlays(RANK.stats); return; }
+    } catch (e) {}
+    await new Promise(ok => setTimeout(ok, 800));
+  }
 }
 async function loadRanking() {
   try { await rankPost; const r = await fetch(`${API}?id=${S.pid}`); if (!r.ok) throw 0; RANK = await r.json(); showPlays(RANK.stats); }
@@ -641,13 +795,14 @@ function endDay() {
   const bonus = win ? Math.floor(R.earned * 0.5) : 0;
   S.points += bonus; S.total += bonus;
   if (win) S.wins++; else if (!tie) S.losses++;
+  applyMissions(win);
   lastStats.match = { win, tie, text: win ? `🏆 Ganaste ${R.my}–${R.rival} a ${rival}` : tie ? `🤝 Empate ${R.my}–${R.rival} con ${rival}` : `❌ Perdiste ${R.my}–${R.rival} contra ${rival}`,
     sub: win ? `Bono de victoria: +${fmt(bonus)} pts` : 'Gana el partido para llevarte un bono del 50%' };
-  const played = countPlay();
-  rankPost = R.earned > S.best && R.earned > 0 ? played.then(() => sendScore('day', R.earned)) : played;
+  const goal = goalNow(), reached = goal && R.earned >= goal;
+  if (reached && isFinal()) S.champion = S.day;               // campeón: se guarda antes de enviar al ranking
+  rankPost = saveDay(R.earned);
   S.day++; S.best = Math.max(S.best, R.earned); save();
-  const goal = goalNow();
-  if (goal && R.earned >= goal) isFinal() ? renderChampion() : renderOffer(); else renderShop();
+  if (reached) isFinal() ? renderChampion() : renderOffer(); else renderShop();
 }
 
 // Crear personaje (primera vez o al borrar la partida)
@@ -672,8 +827,7 @@ function renderCreate() {
 
 // Campeonato ganado: final del modo carrera (se puede seguir jugando)
 function renderChampion() {
-  mode = 'offer'; S.champion = S.day - 1; save();
-  rankPost = sendScore('champ', S.champion);
+  mode = 'offer'; save();
   card.innerHTML = `<div class="offer">
     <div class="emoji">🏆</div>
     <h2>¡Campeón de la Liga de Leyendas!</h2>
@@ -711,6 +865,7 @@ function renderOffer() {
 
 function renderShop() {
   mode = 'shop';
+  ensureDaily();
   const st = stage();
   const items = UPS.map(u => {
     const l = S.lv[u.id], maxed = l >= u.max, c = cost(u, l);
@@ -730,6 +885,7 @@ function renderShop() {
     </div></div>
     <div class="row" style="margin:12px 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span>
       <span class="row" style="margin:0;gap:8px"><a class="btn share" href="${shareLink()}" target="_blank" rel="noopener">Compartir 📲</a><button class="btn" id="go">Empezar día ${S.day} ▶</button></span></div>
+    ${missionsHtml()}
     <div class="shop">${items}</div>
     <div class="rankbox">
       <div class="row" style="margin:0"><h3>🏆 Ranking</h3><div class="tabs">
@@ -748,6 +904,14 @@ function renderShop() {
     if (!rb.dataset.armed) { rb.dataset.armed = 1; rb.textContent = '¿Seguro? Pulsa otra vez'; return; }
     S = FRESH(); lastStats = null; save(); renderCreate();
   };
+  card.querySelectorAll('[data-claim]').forEach(b => b.onclick = () => {
+    const m = S.daily.missions[+b.dataset.claim];
+    if (m.claimed || m.prog < m.n) return;
+    m.claimed = true; S.points += m.reward; S.total += m.reward; save();
+    beep(784, 0.1); setTimeout(() => beep(1175, 0.18), 100); renderShop();
+  });
+  const gb = document.getElementById('giftBtn');
+  if (gb) gb.onclick = () => { S.daily.giftClaimed = true; S.points += S.daily.gift; S.total += S.daily.gift; save(); [659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.15), i * 110)); renderShop(); };
   card.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
     rankTab = b.dataset.tab; card.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === b)); drawRanking();
   });
