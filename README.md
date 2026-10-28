@@ -17,15 +17,19 @@ Las dos tienen el mismo modo carrera, días de 30 s y los mismos precios.
 
 | Liga | Equipo | Canasta vale | Objetivo para subir |
 |---|---|---|---|
-| Cancha del barrio | Barrio | x1 | 40 pts en un día |
-| Liga de Secundaria | Halcones | x2 | 1.000 |
-| Liga Universitaria | Toros | x3 | 25.000 |
-| Liga Profesional | Titanes | x5 | 700.000 |
-| Liga de Leyendas | Leyendas | x8 | 2.000.000 para ganar el campeonato 🏆 |
+| Cancha del barrio | Barrio | x1 | 120 pts en un día |
+| Liga de Secundaria | Halcones | x1,5 | 3.500 |
+| Liga Universitaria | Toros | x2 | 50.000 |
+| Liga Profesional | Titanes | x3 | 250.000 |
+| Liga de Leyendas | Leyendas | x4 | 450.000 para ganar el campeonato 🏆 |
 
 Al ganar el campeonato sale la pantalla final con los días que tardaste, y puedes seguir jugando.
 
-El balance está calculado con un simulador: un jugador normal llega a Leyendas hacia el día 17–24 y gana el campeonato hacia el día 25–35.
+El balance está calculado con un simulador que juega tiro a tiro con todas las mecánicas (zona verde, velocidad del medidor, fuego, últimos segundos, dorados, compañero y partido). Un jugador medio llega a Leyendas hacia el día 37 y es campeón hacia el día 45; uno muy bueno, hacia el día 20.
+
+**Dificultad:** la flecha del medidor va más rápido cuanto más lejos tiras y más alta es la liga. El fuego dura 6 segundos y te vuelves a encender cada 10 canastas seguidas. El balón dorado sale como máximo un 17% de las veces.
+
+**Compañeros:** al comprar la mejora Compañero eliges quién juega contigo: **Nico** (tirador, casi no falla), **Flash** (rápido), **Lucky** (suertudo, desde los Halcones) o **Capi** (capitán: tus canastas +20% y fuego más largo, desde los Toros).
 
 Las ligas están en la tabla `STAGES` del código.
 

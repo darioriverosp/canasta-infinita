@@ -96,6 +96,13 @@
   .btn:disabled { opacity:.4; cursor:not-allowed; }
   .gift { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; background:linear-gradient(90deg, rgba(255,210,63,.18), transparent); border:1px solid rgba(255,210,63,.45); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:14px; }
   .gift .btn { background:var(--gold); }
+  .mates { background:var(--card); border-radius:10px; padding:12px; margin:0 0 12px; }
+  .mates h3 { margin:0 0 8px; font-size:16px; }
+  .mate-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:6px; }
+  .mate { display:flex; flex-direction:column; gap:4px; border:1px solid var(--line); border-radius:8px; padding:8px; font-size:13px; background:rgba(255,255,255,.03); }
+  .mate small { color:var(--muted); font-weight:600; } .mate > span { color:var(--muted); font-size:12px; }
+  .mate.on { border-color:var(--good); background:rgba(61,220,132,.08); } .mate.locked { opacity:.55; }
+  .mate .ok { color:var(--good); font-weight:800; } .mate .lock { font-size:11px; }
   .wardrobe { background:var(--card); border-radius:10px; padding:10px 12px; margin:0 0 12px; }
   .wardrobe summary { cursor:pointer; font-weight:800; font-size:16px; list-style:none; }
   .wardrobe summary::-webkit-details-marker { display:none; }
@@ -199,15 +206,15 @@ const W = 960, H = 540, FLOOR = 470, HOOP = { x: 862, y: 230 };
 // ---------- Mejoras (todo el balance está aquí) ----------
 const DAY_BASE = 30, DAY_STEP = 5;                         // el día dura 30 s (+5 s por mejora)
 const UPS = [
-  { id:'aim',    name:'Puntería',       base:10,   g:2.6, max:10, desc:l=>`Zona verde más grande (+${l*12}%)` },
-  { id:'dist',   name:'Distancia',      base:30,  g:7, max:5,  desc:l=>`Tiras desde más lejos: ${DIST[l].label}, ${DIST[l].pts} pts por canasta` },
-  { id:'rack',   name:'Más balones',    base:12,   g:3,max:6,  desc:l=>`${6+l} balones por carro` },
-  { id:'reload', name:'Recarga rápida', base:12,   g:2.7, max:10, desc:l=>`Recargar tarda ${reloadTime(l).toFixed(2)} s` },
-  { id:'mult',   name:'Multiplicador',  base:80,  g:2.25, max:20,  desc:l=>`Cada canasta vale x${1 + l}` },
-  { id:'multi',  name:'Doble tiro',     base:600,  g:15,   max:3,  desc:l=>`Lanzas ${1+l} balones a la vez` },
-  { id:'luck',   name:'Suerte',         base:40,  g:3, max:10, desc:l=>`${luckChance(l)}% de balón dorado (x5)` },
-  { id:'mate',   name:'Compañero',      base:300, g:3.3, max:10, desc:l=>`Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l)*100)}% acierto)` },
-  { id:'time',   name:'Día más largo',  base:100,  g:6, max:4,  desc:l=>`El día dura ${DAY_BASE + l * DAY_STEP} s` },
+  { id:'aim',    name:'Puntería',       base:25,   g:2.8, max:10, desc:l=>`Zona verde más grande (+${l*12}%)` },
+  { id:'dist',   name:'Distancia',      base:80,  g:8, max:5,  desc:l=>`Tiras desde más lejos: ${DIST[l].label}, ${DIST[l].pts} pts por canasta` },
+  { id:'rack',   name:'Más balones',    base:25,   g:3.3,max:6,  desc:l=>`${6+l} balones por carro` },
+  { id:'reload', name:'Recarga rápida', base:25,   g:2.9, max:10, desc:l=>`Recargar tarda ${reloadTime(l).toFixed(2)} s` },
+  { id:'mult',   name:'Multiplicador',  base:200,  g:2.5, max:15,  desc:l=>`Cada canasta vale x${1 + l}` },
+  { id:'multi',  name:'Doble tiro',     base:3000,  g:15,   max:3,  desc:l=>`Lanzas ${1+l} balones a la vez` },
+  { id:'luck',   name:'Suerte',         base:100,  g:3.2, max:10, desc:l=>`${luckChance(l)}% de balón dorado (x5)` },
+  { id:'mate',   name:'Compañero',      base:800, g:3.3, max:10, desc:l=>`Tira solo cada ${mateEvery(l).toFixed(1)} s (${Math.round(mateAcc(l)*100)}% acierto)` },
+  { id:'time',   name:'Día más largo',  base:300,  g:6, max:4,  desc:l=>`El día dura ${DAY_BASE + l * DAY_STEP} s` },
 ];
 const DIST = [
   { label:'tiro libre',   x:700, pts:1 },
@@ -218,22 +225,38 @@ const DIST = [
   { label:'campo entero', x:120, pts:20 },
 ];
 const reloadTime = l => 2.2 * Math.pow(0.84, l);
-const luckChance = l => l ? 3 + l * 3 : 0;
+const luckChance = l => l ? 2 + l * 1.5 : 0;                // máx. 17% de balón dorado
 const mateEvery  = l => Math.max(0.6, 3.6 - l * 0.3);
 const mateAcc    = l => Math.min(0.9, 0.5 + l * 0.04);
+
+// ---------- Compañeros: eliges quién juega contigo ----------
+// every: multiplica el tiempo entre tiros · acc: suma acierto · pts: parte de tu canasta que vale la suya
+// gold: % extra de balón dorado · boost: extra para TUS canastas · fire: segundos extra de fuego
+const MATES = [
+  { id: 'nico',  name: 'Nico',  role: 'Tirador',  stage: 0, every: 1.25, acc: 0.12,  pts: 0.6,  skin: '#7a4e30', eq: { head: 'cinta-roja' },
+    desc: 'Tira más despacio, pero casi no falla y sus canastas valen más.' },
+  { id: 'flash', name: 'Flash', role: 'Rápido',   stage: 0, every: 0.55, acc: -0.12, pts: 0.35, skin: '#f1c9a5', eq: { shoes: 'zap-neon', arm: 'manga' },
+    desc: 'Tira el doble de rápido, pero falla más.' },
+  { id: 'lucky', name: 'Lucky', role: 'Suertudo', stage: 1, every: 1,    acc: 0,     pts: 0.4,  gold: 20, skin: '#d9a47c', eq: { neck: 'cadena', eyes: 'gafas-sol' },
+    desc: 'Sus balones salen dorados (x5) muchísimo más a menudo.' },
+  { id: 'capi',  name: 'Capi',  role: 'Capitán',  stage: 2, every: 1.6,  acc: 0,     pts: 0.35, boost: 0.2, fire: 3, skin: '#4e3020', eq: { head: 'gorra', wrist: 'muneca' },
+    desc: 'Tira poco, pero tus canastas valen +20% y tu fuego dura 3 s más.' },
+];
+const mateType = () => MATES.find(m => m.id === S.mate) || MATES[0];
 const cost = (u, l) => Math.ceil(u.base * Math.pow(u.g, l));
 
 // ---------- Carrera: cada liga tiene su camiseta, su cancha y su objetivo ----------
 // goal = puntos que hay que hacer en un solo día para que te vea un cazatalentos de la siguiente liga
+// (calculado con un simulador: un jugador medio llega a Leyendas hacia el día 37 y es campeón hacia el día 45)
 const STAGES = [
-  { name:'Cancha del barrio',  team:'Barrio',   jersey:'#ff8a2a', num:'#fff',    sky:['#2b3350', '#c0697a'], floor:'#4a4f5c', lines:'#6a7080', gym:false, mult: 1,   goal: 40 },
-  { name:'Liga de Secundaria', team:'Halcones', jersey:'#2e9d5b', num:'#fff',    sky:['#d9cdb4', '#efe6d2'], floor:'#c08a55', lines:'#a8743f', gym:true,  mult: 2,   goal: 1000,
+  { name:'Cancha del barrio',  team:'Barrio',   jersey:'#ff8a2a', num:'#fff',    sky:['#2b3350', '#c0697a'], floor:'#4a4f5c', lines:'#6a7080', gym:false, mult: 1, goal: 120 },
+  { name:'Liga de Secundaria', team:'Halcones', jersey:'#2e9d5b', num:'#fff',    sky:['#d9cdb4', '#efe6d2'], floor:'#c08a55', lines:'#a8743f', gym:true,  mult: 1.5, goal: 3500,
     offer:'Un cazatalentos de la <b>Liga de Secundaria</b> te estaba viendo jugar. Quiere que te unas a los <b>Halcones</b>.' },
-  { name:'Liga Universitaria', team:'Toros',    jersey:'#c8323c', num:'#fff',    sky:['#2a2f45', '#4a5070'], floor:'#b47a48', lines:'#9a6538', gym:true,  mult: 3,   goal: 25000,
+  { name:'Liga Universitaria', team:'Toros',    jersey:'#c8323c', num:'#fff',    sky:['#2a2f45', '#4a5070'], floor:'#b47a48', lines:'#9a6538', gym:true,  mult: 2, goal: 50000,
     offer:'Un ojeador de la universidad vio tus partidos. Te ofrecen una <b>beca</b> para jugar con los <b>Toros</b>.' },
-  { name:'Liga Profesional',   team:'Titanes',  jersey:'#6b3fc9', num:'#fff',    sky:['#120c28', '#3a1e60'], floor:'#a8703f', lines:'#8e5c32', gym:true,  mult: 5,   goal: 700000,
+  { name:'Liga Profesional',   team:'Titanes',  jersey:'#6b3fc9', num:'#fff',    sky:['#120c28', '#3a1e60'], floor:'#a8703f', lines:'#8e5c32', gym:true,  mult: 3, goal: 250000,
     offer:'¡Te llegó una oferta profesional! Los <b>Titanes</b> quieren ficharte.' },
-  { name:'Liga de Leyendas',   team:'Leyendas', jersey:'#1b1b1b', num:'#c9a227', sky:['#05050c', '#2a2040'], floor:'#2c2c34', lines:'#c9a227', gym:true,  mult: 8,   goal: 2000000,
+  { name:'Liga de Leyendas',   team:'Leyendas', jersey:'#1b1b1b', num:'#c9a227', sky:['#05050c', '#2a2040'], floor:'#2c2c34', lines:'#c9a227', gym:true,  mult: 4, goal: 450000,
     offer:'Eres la estrella de la liga. Te llaman para jugar con las <b>Leyendas</b>, lo más alto del baloncesto.' },
 ];
 const SKINS = ['#f1c9a5', '#d9a47c', '#b07850', '#7a4e30', '#4e3020'];
@@ -271,7 +294,7 @@ const goalNow = () => isFinal() && S.champion ? null : stage().goal;   // en Ley
 const goalWhat = () => isFinal() ? 'para ganar el campeonato 🏆' : 'para que te vea un cazatalentos';
 
 // ---------- Guardado ----------
-const FRESH = () => ({ points:0, day:1, total:0, stage:0, best:0, char:null, champion: 0, wins:0, losses:0, style: { owned: [], eq: {} },
+const FRESH = () => ({ points:0, day:1, total:0, stage:0, best:0, char:null, champion: 0, wins:0, losses:0, style: { owned: [], eq: {} }, mate: 'nico',
   pid: Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''), lv:Object.fromEntries(UPS.map(u=>[u.id,0])) });
 let S = FRESH();
 try { const raw = localStorage.getItem('canastaman2d-v2'); if (raw) { S = Object.assign(FRESH(), JSON.parse(raw)); S.lv = Object.assign(FRESH().lv, S.lv); } } catch(e) {}
@@ -320,10 +343,10 @@ const RIVAL_LEVEL = [0.5, 0.6, 0.7, 0.8, 0.9];
 const matchPts = () => S.lv.dist >= 2 ? 3 : 2;               // desde la línea de triple, cada canasta vale 3 en el marcador
 function rivalInterval() {
   const n = 6 + S.lv.rack, reload = reloadTime(S.lv.reload);
-  const hit = Math.min(0.95, 2 * zoneHalf() * 2.2);            // acierto de un jugador normal
+  const hit = Math.min(0.95, 2 * zoneHalf() * 2.2 * 1.25 / meterSpeed());   // acierto de un jugador normal
   const shotsPerSec = n / (n / 2 + reload * (1 - Math.pow(hit, n)));
   let you = shotsPerSec * (1 + S.lv.multi) * hit * matchPts();
-  if (S.lv.mate) you += mateAcc(S.lv.mate) / mateEvery(S.lv.mate) * 2;
+  if (S.lv.mate) you += Math.min(0.97, mateAcc(S.lv.mate) + mateType().acc) / (mateEvery(S.lv.mate) * mateType().every) * 2;
   const rivalPerSec = you * RIVAL_LEVEL[S.stage];
   return 2.25 / rivalPerSec * (0.6 + Math.random() * 0.8);
 }
@@ -389,6 +412,17 @@ function missionsHtml() {
   return `<div class="missions">${gift}<h3>📋 Misiones de hoy <small>nuevas en ${hrs} h</small></h3><ul>${rows}</ul></div>`;
 }
 
+// ---------- Elegir compañero (en la tienda) ----------
+function matesHtml() {
+  if (!S.lv.mate) return '<div class="mates"><h3>🤝 Compañero</h3><p class="help">Compra la mejora <b>Compañero</b> para elegir quién juega contigo: Nico, Flash, Lucky o Capi.</p></div>';
+  const cards = MATES.map(m => {
+    const locked = S.stage < m.stage, on = mateType().id === m.id;
+    return `<div class="mate ${on ? 'on' : ''} ${locked ? 'locked' : ''}"><b>${m.name} <small>${m.role}</small></b><span>${m.desc}</span>
+      ${locked ? `<span class="lock">🔒 Llega a los ${STAGES[m.stage].team}</span>` : on ? '<span class="ok">✔ Juega contigo</span>' : `<button class="btn mini" data-mate="${m.id}">Elegir</button>`}</div>`;
+  }).join('');
+  return `<div class="mates"><h3>🤝 Tu compañero</h3><div class="mate-grid">${cards}</div></div>`;
+}
+
 // ---------- Vestuario (en la tienda) ----------
 let wardrobeOpen = false;
 function wardrobeHtml() {
@@ -435,11 +469,13 @@ function bindWardrobe() {
 
 // ---------- Racha en llamas ----------
 const FIRE_AT = 10;                                            // canastas seguidas para encenderse
+const FIRE_TIME = 6;                                           // segundos que dura el fuego (el Capitán lo alarga)
 const CLUTCH = 5;                                              // últimos segundos del día: cada canasta vale x2
 
-function perBasket() { return DIST[S.lv.dist].pts * (1 + S.lv.mult) * stage().mult; }
+function perBasket() { return Math.ceil(DIST[S.lv.dist].pts * (1 + S.lv.mult) * stage().mult); }
 function zoneHalf() { return Math.max(0.05, (0.15 - S.lv.dist * 0.012) * (1 + S.lv.aim * 0.12)); }
 const playerX = () => DIST[S.lv.dist].x;
+const meterSpeed = () => 1.25 + S.lv.dist * 0.1 + S.stage * 0.2;   // la flecha se mueve más rápido en ligas altas
 
 function shoot() {
   if (mode !== 'play' || R.t <= 0 || R.reloading > 0 || R.balls <= 0) return;
@@ -450,9 +486,9 @@ function shoot() {
   const fire = R.fire;                                         // este tiro sale con fuego si ya estabas en llamas
   if (made) {
     R.rackMade++; R.streak++; R.best = Math.max(R.best, R.streak);
-    if (R.streak === FIRE_AT) {
-      R.fire = true; R.fires++; shake = 12;
-      addText(W / 2, 200, '🔥 ¡EN LLAMAS! Todo vale x2', '#ff7a1a', 34);
+    if (R.streak % FIRE_AT === 0) {                            // cada 10 seguidas te vuelves a encender
+      R.fire = true; R.fireLeft = FIRE_TIME + (mateType().fire || 0); R.fires++; shake = 12;
+      addText(W / 2, 200, `🔥 ¡EN LLAMAS! Todo vale x2 durante ${Math.round(R.fireLeft)} s`, '#ff7a1a', 30);
       [330, 440, 660, 880].forEach((f, i) => setTimeout(() => beep(f, 0.12, 'sawtooth', 0.04), i * 70));
     }
   } else {
@@ -484,7 +520,8 @@ function launch(x0, y0, made, o) {
 
 function scoreBall(b) {
   let pts = perBasket();
-  if (b.mate) pts = Math.max(1, Math.floor(pts * 0.5));
+  if (b.mate) pts = Math.max(1, Math.floor(pts * mateType().pts));
+  else if (mateType().boost && S.lv.mate) pts = Math.floor(pts * (1 + mateType().boost));
   if (b.perfect) pts = Math.floor(pts * 1.5);
   if (b.gold) pts *= 5;
   if (b.fire) pts *= 2;
@@ -524,14 +561,15 @@ function loop(now) {
 function update(dt) {
   if (mode === 'play') {
     R.t -= dt;
-    R.m += R.dir * dt * 1.25;
+    R.m += R.dir * dt * meterSpeed();
     if (R.m > 1) { R.m = 1; R.dir = -1; } if (R.m < 0) { R.m = 0; R.dir = 1; }
     if (R.reloading > 0) { R.reloading -= dt; if (R.reloading <= 0) { R.reloading = 0; R.balls = 6 + S.lv.rack; beep(440, .05); } }
     if (S.lv.mate && R.t > 0) {
       R.mateT += dt;
-      if (R.mateT >= mateEvery(S.lv.mate)) {
+      if (R.mateT >= mateEvery(S.lv.mate) * mateType().every) {
         R.mateT = 0; R.shots++;
-        launch(800, FLOOR - 110, Math.random() < mateAcc(S.lv.mate), { mate: true, gold: Math.random() * 100 < luckChance(S.lv.luck), delay: 0, perfect: false });
+        const mt = mateType();
+        launch(800, FLOOR - 110, Math.random() < Math.max(0.2, Math.min(0.97, mateAcc(S.lv.mate) + mt.acc)), { mate: true, gold: Math.random() * 100 < luckChance(S.lv.luck) + (mt.gold || 0), delay: 0, perfect: false });
       }
     }
     if (R.t > 0) {                                             // el rival anota
@@ -543,6 +581,7 @@ function update(dt) {
       }
     }
     R.flash = Math.max(0, R.flash - dt * 2);
+    if (R.fire && (R.fireLeft -= dt) <= 0) { R.fire = false; addText(W / 2, 200, 'El fuego se apagó', '#9aa3b2', 20); }
     const sec = Math.ceil(R.t);                                // últimos segundos: aviso y latido cada segundo
     if (R.t > 0 && R.t <= CLUTCH && sec !== R.lastSec) {
       if (R.lastSec === undefined || R.lastSec > CLUTCH) { addText(W / 2, 250, '⏰ ¡ÚLTIMOS SEGUNDOS! Todo vale x2', '#ff5c5c', 30); hype = Math.max(hype, 0.5); }
@@ -696,7 +735,7 @@ function draw() {
   cx.beginPath(); cx.moveTo(HOOP.x - 22, HOOP.y + 18 + stretch / 2); cx.lineTo(HOOP.x + 26, HOOP.y + 18 + stretch / 2); cx.stroke();
   const c = S.char || { name: '', num: 7, skin: SKINS[1] };
   // compañero (mismo equipo)
-  if (S.lv.mate) person(790, st, c.num === 23 ? 11 : 23, SKINS[3], 0.85, '');
+  if (S.lv.mate) { const mt = mateType(); person(790, st, c.num === 23 ? 11 : 23, mt.skin, 0.85, mode === 'play' ? mt.name : '', mt.eq); }
   // jugador
   person(playerX(), st, c.num, c.skin, 1, mode === 'play' ? c.name : '', S.style.eq);
   // balones
@@ -806,8 +845,8 @@ function hud() {
     cx.fillStyle = 'rgba(0,0,0,.5)'; cx.fillRect(20, 112, 160, 8); cx.fillStyle = '#4aa3ff'; cx.fillRect(20, 112, 160 * p, 8);
     txt('recargando…', 20, 136, '600 12px system-ui', '#9cc9ff');
   }
-  if (R.fire) txt(`🔥 EN LLAMAS x2 · racha ${R.streak}`, 20, 160, '900 18px system-ui', '#ff8a2a');
-  else if (R.streak >= 3) txt(`Racha x${R.streak} (a ${FIRE_AT} te enciendes 🔥)`, 20, 160, '800 15px system-ui', '#3ddc84');
+  if (R.fire) txt(`🔥 EN LLAMAS x2 · ${Math.ceil(R.fireLeft)} s · racha ${R.streak}`, 20, 160, '900 18px system-ui', '#ff8a2a');
+  else if (R.streak >= 3) txt(`Racha x${R.streak} (a ${Math.ceil(R.streak / FIRE_AT + 0.001) * FIRE_AT} te enciendes 🔥)`, 20, 160, '800 15px system-ui', '#3ddc84');
   // marcador del partido
   const bx = W / 2, by = 104;
   cx.fillStyle = 'rgba(10,12,16,.72)'; cx.fillRect(bx - 190, by, 380, 36);
@@ -1001,6 +1040,7 @@ function renderShop() {
     <div class="row" style="margin:12px 0 10px"><span class="money">💰 ${fmt(S.points)} pts</span>
       <span class="row" style="margin:0;gap:8px"><a class="btn share" href="${shareLink()}" target="_blank" rel="noopener">Compartir 📲</a><button class="btn" id="go">Empezar día ${S.day} ▶</button></span></div>
     ${missionsHtml()}
+    ${matesHtml()}
     ${wardrobeHtml()}
     <div class="shop">${items}</div>
     <div class="rankbox">
@@ -1027,6 +1067,7 @@ function renderShop() {
     beep(784, 0.1); setTimeout(() => beep(1175, 0.18), 100); renderShop();
   });
   bindWardrobe();
+  card.querySelectorAll('[data-mate]').forEach(b => b.onclick = () => { S.mate = b.dataset.mate; save(); beep(740, 0.07); renderShop(); });
   const gb = document.getElementById('giftBtn');
   if (gb) gb.onclick = () => { S.daily.giftClaimed = true; S.points += S.daily.gift; S.total += S.daily.gift; save(); [659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.15), i * 110)); renderShop(); };
   card.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
